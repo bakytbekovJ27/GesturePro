@@ -1,0 +1,6 @@
+.venv
+/__pycache__
+.DS_Store
+/core/__pycache__
+/screens/__pycache__
+Example.pdf
