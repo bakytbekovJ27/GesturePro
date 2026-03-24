@@ -11,22 +11,36 @@ import math
 import time
 
 import sys, os
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from core.localization import Lang
 from core.gesture import GestureDetector, PinchButton, GESTURE_PINCH, GESTURE_NONE
 from core.renderer import (
-    fill_bg, draw_rect_rounded, put_text, draw_cursor,
-    draw_pinch_progress, draw_gesture_badge,
-    C_BG, C_PANEL, C_CARD, C_BORDER, C_ACCENT, C_ACCENT2,
-    C_PURPLE, C_TEXT, C_TEXT_DIM, C_SUCCESS, C_DANGER,
+    fill_bg,
+    draw_rect_rounded,
+    put_text,
+    draw_cursor,
+    draw_pinch_progress,
+    draw_gesture_badge,
+    C_BG,
+    C_PANEL,
+    C_CARD,
+    C_BORDER,
+    C_ACCENT,
+    C_ACCENT2,
+    C_PURPLE,
+    C_TEXT,
+    C_TEXT_DIM,
+    C_SUCCESS,
+    C_DANGER,
 )
 
 # Возможные результаты экрана
-RESULT_START    = "START"
+RESULT_START = "START"
 RESULT_SETTINGS = "SETTINGS"
-RESULT_EXIT     = "EXIT"
-RESULT_NONE     = None
+RESULT_EXIT = "EXIT"
+RESULT_NONE = None
 
 W, H = 1280, 720
 
@@ -38,15 +52,15 @@ class MenuScreen:
     """
 
     # Параметры кнопок (будут пересчитаны в _layout)
-    BTN_W  = 380
-    BTN_H  = 80
+    BTN_W = 380
+    BTN_H = 80
     BTN_GAP = 22
-    BTN_HOLD = 0.7   # секунд удержания пинча
+    BTN_HOLD = 0.7  # секунд удержания пинча
 
     BUTTONS = [
-        ("menu_start",    RESULT_START,    C_ACCENT),
+        ("menu_start", RESULT_START, C_ACCENT),
         ("menu_settings", RESULT_SETTINGS, C_ACCENT2),
-        ("menu_exit",     RESULT_EXIT,     C_DANGER),
+        ("menu_exit", RESULT_EXIT, C_DANGER),
     ]
 
     def __init__(self):
@@ -67,8 +81,8 @@ class MenuScreen:
             frame = cv2.flip(frame, 1)
 
             result = detector.process(frame)
-            gesture  = result["gesture"]
-            pinch    = result["pinch_pos"]
+            gesture = result["gesture"]
+            pinch = result["pinch_pos"]
 
             # Обновляем кнопки
             action = self._update_buttons(pinch)
@@ -80,22 +94,24 @@ class MenuScreen:
             cv2.imshow("Gesture Suite", canvas)
 
             key = cv2.waitKey(1) & 0xFF
-            if key in (ord('q'), 27):
+            if key in (ord("q"), 27):
                 return RESULT_EXIT
-            elif key == ord('1'):
+            elif key == ord("1"):
                 return RESULT_START
-            elif key == ord('2'):
+            elif key == ord("2"):
                 return RESULT_SETTINGS
 
     # ── Построение Layout ─────────────────────────────────────────────────────
 
     def _build_layout(self):
-        total_h = len(self.BUTTONS) * self.BTN_H + (len(self.BUTTONS)-1) * self.BTN_GAP
+        total_h = (
+            len(self.BUTTONS) * self.BTN_H + (len(self.BUTTONS) - 1) * self.BTN_GAP
+        )
         start_y = H // 2 - total_h // 2 + 40
-        cx      = W // 2
+        cx = W // 2
 
-        self._btn_rects   = []
-        self._pinch_btns  = []
+        self._btn_rects = []
+        self._pinch_btns = []
         for i, (_, _, _) in enumerate(self.BUTTONS):
             x = cx - self.BTN_W // 2
             y = start_y + i * (self.BTN_H + self.BTN_GAP)
@@ -134,8 +150,9 @@ class MenuScreen:
 
         # Подсказка по жесту
         hint = Lang.t("gesture_hint")
-        put_text(canvas, hint, (W//2, H - 36), font_size=18,
-                 color=C_TEXT_DIM, anchor="ct")
+        put_text(
+            canvas, hint, (W // 2, H - 36), font_size=18, color=C_TEXT_DIM, anchor="ct"
+        )
 
         # Курсор
         if pinch:
@@ -159,9 +176,9 @@ class MenuScreen:
         # Вертикальный градиент
         for y in range(H):
             ratio = y / H
-            b = int(20  + ratio * 10)
-            g = int(22  + ratio * 8)
-            r = int(30  + ratio * 15)
+            b = int(20 + ratio * 10)
+            g = int(22 + ratio * 8)
+            r = int(30 + ratio * 15)
             canvas[y, :] = (b, g, r)
 
         # Сетка
@@ -172,13 +189,13 @@ class MenuScreen:
 
     def _draw_particles(self, canvas, t):
         for p in self._particles:
-            age = (t * p['speed'] + p['phase']) % 1.0
+            age = (t * p["speed"] + p["phase"]) % 1.0
             alpha = math.sin(age * math.pi)
-            x = int(p['x'] * W)
-            y = int((p['y'] + age * 0.3) % 1.0 * H)
-            r = int(p['r'] * alpha)
+            x = int(p["x"] * W)
+            y = int((p["y"] + age * 0.3) % 1.0 * H)
+            r = int(p["r"] * alpha)
             if r > 0:
-                color = tuple(int(c * alpha * 0.6) for c in p['color'])
+                color = tuple(int(c * alpha * 0.6) for c in p["color"])
                 cv2.circle(canvas, (x, y), r, color, -1)
 
     def _draw_pip(self, canvas, cam_frame):
@@ -186,43 +203,64 @@ class MenuScreen:
         pip = cv2.resize(cam_frame, (pw, ph))
         # Полупрозрачная рамка
         x0, y0 = W - pw - 16, H - ph - 16
-        draw_rect_rounded(canvas, (x0-3, y0-3), (x0+pw+3, y0+ph+3), C_BORDER, radius=10)
-        canvas[y0:y0+ph, x0:x0+pw] = pip
+        draw_rect_rounded(
+            canvas, (x0 - 3, y0 - 3), (x0 + pw + 3, y0 + ph + 3), C_BORDER, radius=10
+        )
+        canvas[y0 : y0 + ph, x0 : x0 + pw] = pip
 
     def _draw_title(self, canvas, t):
         pulse = 0.85 + 0.15 * math.sin(t * 1.5)
         bright = tuple(int(c * pulse) for c in C_ACCENT)
 
         # Декоративная линия
-        lx1 = W//2 - 180
-        lx2 = W//2 + 180
-        ly  = 160
+        lx1 = W // 2 - 180
+        lx2 = W // 2 + 180
+        ly = 160
         cv2.line(canvas, (lx1, ly), (lx2, ly), C_BORDER, 1)
 
-        put_text(canvas, Lang.t("menu_subtitle"), (W//2, 120),
-                 font_size=22, color=C_TEXT_DIM, anchor="ct")
-        put_text(canvas, "GESTURE SUITE", (W//2, 185),
-                 font_size=52, color=bright, bold=True, anchor="ct")
+        put_text(
+            canvas,
+            Lang.t("menu_subtitle"),
+            (W // 2, 120),
+            font_size=22,
+            color=C_TEXT_DIM,
+            anchor="ct",
+        )
+        put_text(
+            canvas,
+            "GESTURE SUITE",
+            (W // 2, 185),
+            font_size=52,
+            color=bright,
+            bold=True,
+            anchor="ct",
+        )
 
         cv2.line(canvas, (lx1, 205), (lx2, 205), C_BORDER, 1)
 
     def _draw_buttons(self, canvas, pinch):
         for i, ((key, result, accent), (x, y, bw, bh)) in enumerate(
-                zip(self.BUTTONS, self._btn_rects)):
-
+            zip(self.BUTTONS, self._btn_rects)
+        ):
             btn_obj = self._pinch_btns[i]
             hovered = btn_obj.is_hovered(pinch)
-            pct     = btn_obj.progress()
+            pct = btn_obj.progress()
 
             # Фон кнопки
             bg_color = tuple(int(c * 0.35) for c in accent) if hovered else C_CARD
-            draw_rect_rounded(canvas, (x, y), (x+bw, y+bh), bg_color, radius=14)
+            draw_rect_rounded(canvas, (x, y), (x + bw, y + bh), bg_color, radius=14)
 
             # Рамка
             border_col = accent if hovered else C_BORDER
-            border_w   = 2 if hovered else 1
-            draw_rect_rounded(canvas, (x, y), (x+bw, y+bh), border_col,
-                               radius=14, thickness=border_w)
+            border_w = 2 if hovered else 1
+            draw_rect_rounded(
+                canvas,
+                (x, y),
+                (x + bw, y + bh),
+                border_col,
+                radius=14,
+                thickness=border_w,
+            )
 
             # Прогресс заполнения кнопки
             if hovered and pct > 0:
@@ -230,35 +268,49 @@ class MenuScreen:
                 fill_color = tuple(int(c * 0.5) for c in accent)
                 # Клипируем прямоугольник до кнопки
                 overlay = canvas.copy()
-                draw_rect_rounded(overlay, (x, y), (x + fill_w, y + bh),
-                                  fill_color, radius=14)
+                draw_rect_rounded(
+                    overlay, (x, y), (x + fill_w, y + bh), fill_color, radius=14
+                )
                 cv2.addWeighted(overlay, 0.4, canvas, 0.6, 0, canvas)
 
             # Текст кнопки
             text_color = accent if hovered else C_TEXT
-            put_text(canvas, Lang.t(key), (x + bw//2, y + bh//2),
-                     font_size=26, color=text_color, bold=True, anchor="cc")
+            put_text(
+                canvas,
+                Lang.t(key),
+                (x + bw // 2, y + bh // 2),
+                font_size=26,
+                color=text_color,
+                bold=True,
+                anchor="cc",
+            )
 
             # Клавишная подсказка (1/2/3)
             hint_key = str(i + 1)
-            put_text(canvas, hint_key, (x + bw - 22, y + bh - 12),
-                     font_size=14, color=C_TEXT_DIM)
+            put_text(
+                canvas,
+                hint_key,
+                (x + bw - 22, y + bh - 12),
+                font_size=14,
+                color=C_TEXT_DIM,
+            )
 
     # ── Частицы ───────────────────────────────────────────────────────────────
 
     @staticmethod
     def _init_particles():
         import random
+
         rng = random.Random(42)
         palette = [C_ACCENT, C_ACCENT2, C_PURPLE]
         return [
             {
-                'x':     rng.random(),
-                'y':     rng.random(),
-                'r':     rng.randint(2, 5),
-                'speed': rng.uniform(0.05, 0.15),
-                'phase': rng.random(),
-                'color': palette[rng.randint(0, 2)],
+                "x": rng.random(),
+                "y": rng.random(),
+                "r": rng.randint(2, 5),
+                "speed": rng.uniform(0.05, 0.15),
+                "phase": rng.random(),
+                "color": palette[rng.randint(0, 2)],
             }
             for _ in range(40)
         ]

@@ -18,11 +18,11 @@ from screens.settings_screen import SettingsScreen
 from screens.load_screen import LoadScreen
 from screens.presentation_screen import PresentationScreen, RESULT_MENU, RESULT_LOAD
 
-STATE_MENU         = "MENU"
-STATE_SETTINGS     = "SETTINGS"
-STATE_LOAD         = "LOAD"
+STATE_MENU = "MENU"
+STATE_SETTINGS = "SETTINGS"
+STATE_LOAD = "LOAD"
 STATE_PRESENTATION = "PRESENTATION"
-STATE_EXIT         = "EXIT"
+STATE_EXIT = "EXIT"
 
 
 def main():
@@ -31,9 +31,9 @@ def main():
     print("=" * 60)
 
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cap.set(cv2.CAP_PROP_FPS,          30)
+    cap.set(cv2.CAP_PROP_FPS, 30)
 
     ret, frame = cap.read()
     if not ret:
@@ -48,14 +48,13 @@ def main():
     cv2.namedWindow("Gesture Suite", cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Gesture Suite", 1280, 810)
 
-    state  = STATE_MENU
+    state = STATE_MENU
     slides = None
 
     print("Открываю главное меню...")
 
     try:
         while state != STATE_EXIT:
-
             if state == STATE_MENU:
                 result = MenuScreen().run(cap, detector)
                 if result == RESULT_START:
@@ -75,7 +74,7 @@ def main():
                     state = STATE_MENU
                 elif isinstance(result, list) and result:
                     slides = result
-                    state  = STATE_PRESENTATION
+                    state = STATE_PRESENTATION
                 else:
                     state = STATE_MENU
 

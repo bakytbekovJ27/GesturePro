@@ -14,13 +14,13 @@ import mediapipe as mp
 import numpy as np
 
 # ── Константы жестов ──────────────────────────────────────────────────────────
-GESTURE_NONE    = "NONE"
-GESTURE_FIST    = "FIST"
-GESTURE_POINT   = "POINT"      # только указательный
-GESTURE_THUMB   = "THUMB"      # только большой
-GESTURE_PALM    = "PALM"       # все пальцы
-GESTURE_PEACE   = "PEACE"      # указательный + средний
-GESTURE_PINCH   = "PINCH"      # большой + указательный соприкасаются
+GESTURE_NONE = "NONE"
+GESTURE_FIST = "FIST"
+GESTURE_POINT = "POINT"  # только указательный
+GESTURE_THUMB = "THUMB"  # только большой
+GESTURE_PALM = "PALM"  # все пальцы
+GESTURE_PEACE = "PEACE"  # указательный + средний
+GESTURE_PINCH = "PINCH"  # большой + указательный соприкасаются
 
 
 class GestureDetector:
@@ -34,12 +34,15 @@ class GestureDetector:
         pinch_pos = result['pinch_pos']  # (x, y) в пикселях или None
     """
 
-    PINCH_THRESHOLD = 0.06   # нормализованное расстояние для пинча
+    PINCH_THRESHOLD = 0.06  # нормализованное расстояние для пинча
 
-    def __init__(self, max_hands: int = 1,
-                 detection_conf: float = 0.75,
-                 tracking_conf: float = 0.75):
-        self._mp_hands   = mp.solutions.hands
+    def __init__(
+        self,
+        max_hands: int = 1,
+        detection_conf: float = 0.75,
+        tracking_conf: float = 0.75,
+    ):
+        self._mp_hands = mp.solutions.hands
         self._mp_drawing = mp.solutions.drawing_utils
         self._hands = self._mp_hands.Hands(
             static_image_mode=False,
@@ -61,11 +64,11 @@ class GestureDetector:
           annotated  : np.ndarray         — кадр с нарисованными landmarks
         """
         h, w = frame.shape[:2]
-        rgb  = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        res  = self._hands.process(rgb)
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        res = self._hands.process(rgb)
 
         out = {
-            "gesture":   GESTURE_NONE,
+            "gesture": GESTURE_NONE,
             "landmarks": None,
             "pinch_pos": None,
             "index_pos": None,
@@ -80,9 +83,13 @@ class GestureDetector:
 
         # Рисуем landmarks
         self._mp_drawing.draw_landmarks(
-            out["annotated"], lm, self._mp_hands.HAND_CONNECTIONS,
-            self._mp_drawing.DrawingSpec(color=(0, 230, 100), thickness=1, circle_radius=2),
-            self._mp_drawing.DrawingSpec(color=(180, 0, 0),   thickness=1),
+            out["annotated"],
+            lm,
+            self._mp_hands.HAND_CONNECTIONS,
+            self._mp_drawing.DrawingSpec(
+                color=(0, 230, 100), thickness=1, circle_radius=2
+            ),
+            self._mp_drawing.DrawingSpec(color=(180, 0, 0), thickness=1),
         )
 
         gesture = self._classify(lm)
@@ -118,36 +125,40 @@ class GestureDetector:
             return GESTURE_FIST
         if n == 5:
             return GESTURE_PALM
-        if f['index'] and f['middle'] and not f['ring'] and not f['pinky']:
+        if f["index"] and f["middle"] and not f["ring"] and not f["pinky"]:
             return GESTURE_PEACE
-        if f['index'] and n == 1:
+        if f["index"] and n == 1:
             return GESTURE_POINT
-        if f['thumb'] and n == 1:
+        if f["thumb"] and n == 1:
             return GESTURE_THUMB
         return GESTURE_NONE
 
     def _fingers_up(self, lm) -> dict:
         H = self._mp_hands.HandLandmark
-        def up(tip, pip): return lm.landmark[tip].y < lm.landmark[pip].y
+
+        def up(tip, pip):
+            return lm.landmark[tip].y < lm.landmark[pip].y
+
         tt = lm.landmark[H.THUMB_TIP]
         ti = lm.landmark[H.THUMB_IP]
         return {
-            'thumb':  abs(tt.x - ti.x) > 0.03,
-            'index':  up(H.INDEX_FINGER_TIP,  H.INDEX_FINGER_PIP),
-            'middle': up(H.MIDDLE_FINGER_TIP, H.MIDDLE_FINGER_PIP),
-            'ring':   up(H.RING_FINGER_TIP,   H.RING_FINGER_PIP),
-            'pinky':  up(H.PINKY_TIP,         H.PINKY_PIP),
+            "thumb": abs(tt.x - ti.x) > 0.03,
+            "index": up(H.INDEX_FINGER_TIP, H.INDEX_FINGER_PIP),
+            "middle": up(H.MIDDLE_FINGER_TIP, H.MIDDLE_FINGER_PIP),
+            "ring": up(H.RING_FINGER_TIP, H.RING_FINGER_PIP),
+            "pinky": up(H.PINKY_TIP, H.PINKY_PIP),
         }
 
     def _is_pinch(self, lm) -> bool:
-        H   = self._mp_hands.HandLandmark
-        th  = lm.landmark[H.THUMB_TIP]
+        H = self._mp_hands.HandLandmark
+        th = lm.landmark[H.THUMB_TIP]
         idx = lm.landmark[H.INDEX_FINGER_TIP]
         dist = math.hypot(th.x - idx.x, th.y - idx.y)
         return dist < self.PINCH_THRESHOLD
 
 
 # ── Вспомогательный класс: отслеживание удержания кнопки через пинч ──────────
+
 
 class PinchButton:
     """
@@ -160,21 +171,20 @@ class PinchButton:
         btn.draw(frame)                   # рисует прогресс
     """
 
-    HOLD_TIME = 0.8   # секунд до нажатия
+    HOLD_TIME = 0.8  # секунд до нажатия
 
-    def __init__(self, x: int, y: int, w: int, h: int,
-                 hold_time: float = None):
-        self.rect      = (x, y, w, h)
+    def __init__(self, x: int, y: int, w: int, h: int, hold_time: float = None):
+        self.rect = (x, y, w, h)
         self.hold_time = hold_time or self.HOLD_TIME
-        self._start    = None
-        self._fired    = False
+        self._start = None
+        self._fired = False
 
     def update(self, pinch_pos) -> bool:
         """Возвращает True в момент первого нажатия."""
         if pinch_pos and self._inside(pinch_pos):
             if self._start is None:
-                self._start  = time.time()
-                self._fired  = False
+                self._start = time.time()
+                self._fired = False
             elapsed = time.time() - self._start
             if elapsed >= self.hold_time and not self._fired:
                 self._fired = True
@@ -193,8 +203,7 @@ class PinchButton:
     def is_hovered(self, pinch_pos) -> bool:
         return pinch_pos is not None and self._inside(pinch_pos)
 
-    def draw_progress(self, frame: np.ndarray,
-                      color=(79, 142, 247), bg=(40, 40, 40)):
+    def draw_progress(self, frame: np.ndarray, color=(79, 142, 247), bg=(40, 40, 40)):
         """Рисует индикатор прогресса под кнопкой."""
         x, y, w, h = self.rect
         pct = self.progress()

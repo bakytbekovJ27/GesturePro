@@ -1,0 +1,17 @@
+{
+  "name": "GesturePro Remote",
+  "short_name": "GesturePro",
+  "description": "Pair with a GesturePro screen and upload presentations from a phone.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#102433",
+  "theme_color": "#102433",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
