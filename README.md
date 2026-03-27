@@ -10,14 +10,12 @@ GesturePro объединяет три части:
 
 ```text
 GesturePro/
-├── main.py              # desktop entrypoint
+├── backend/             # Django API, server config, env, requirements
+├── frontend/            # React + Vite PWA
 ├── core/                # жесты, рендеринг, загрузка слайдов
 ├── screens/             # экраны desktop-приложения
-├── api/                 # Django REST API
-├── server/              # Django settings/urls/asgi/wsgi
-├── frontend/            # React + Vite PWA
-├── requirements.txt     # Python dependencies
-└── .env.example         # backend env template
+├── main.py              # desktop entrypoint
+└── README.md
 ```
 
 ## Что умеет проект
@@ -35,10 +33,10 @@ GesturePro/
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python manage.py migrate
-python manage.py runserver
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+python backend/manage.py migrate
+python backend/manage.py runserver
 ```
 
 Desktop-приложение запускается отдельно:
@@ -60,7 +58,7 @@ npm run dev
 
 ## Переменные окружения backend
 
-Основные переменные описаны в `.env.example`:
+Основные переменные описаны в `backend/.env.example`:
 
 - `DJANGO_SECRET_KEY`
 - `DJANGO_DEBUG`
@@ -72,6 +70,16 @@ npm run dev
 - `SESSION_LIFETIME_HOURS`
 - `CELERY_BROKER_URL`
 - `CELERY_RESULT_BACKEND`
+
+## Backend layout
+
+Теперь вся серверная часть собрана в `backend/`:
+
+- `backend/manage.py` — Django entrypoint;
+- `backend/api/` — REST API, модели, сериализаторы, бизнес-логика;
+- `backend/server/` — settings, urls, asgi, wsgi, celery;
+- `backend/requirements.txt` — Python-зависимости backend;
+- `backend/.env.example` — шаблон переменных окружения backend.
 
 ## Системные зависимости
 
