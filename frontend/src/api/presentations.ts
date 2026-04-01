@@ -1,6 +1,11 @@
 import axios from 'axios'
 import type { AxiosProgressEvent } from 'axios'
-import { apiClient, getAuthHeaders, isLanApiMisconfigured } from './client'
+import {
+  apiClient,
+  getAuthHeaders,
+  getBackendUnavailableMessage,
+  isLanApiMisconfigured,
+} from './client'
 import type { PairingResponse, PresentationSummary } from '../types/api'
 
 
@@ -11,7 +16,9 @@ export async function pairSession(pinCode: string) {
     })
     return response.data
   } catch (error) {
-    throw mapApiError(error, 'Код недействителен или экран отключен.')
+    throw mapApiError(error, 'Код недействителен или экран отключен.', {
+      invalidPinMessage: 'Код недействителен или экран отключен.',
+    })
   }
 }
 
@@ -80,8 +87,18 @@ export async function reusePresentation(accessToken: string, presentationId: str
   }
 }
 
-function mapApiError(error: unknown, fallbackMessage: string) {
+function mapApiError(
+  error: unknown,
+  fallbackMessage: string,
+  options?: {
+    invalidPinMessage?: string
+  },
+) {
   if (axios.isAxiosError(error)) {
+    if (error.response?.status === 404 && options?.invalidPinMessage) {
+      return new Error(options.invalidPinMessage)
+    }
+
     const detail = error.response?.data?.detail
     if (typeof detail === 'string' && detail) {
       return new Error(detail)
@@ -89,8 +106,12 @@ function mapApiError(error: unknown, fallbackMessage: string) {
 
     if (isLanApiMisconfigured()) {
       return new Error(
-        'Frontend открыт по локальной сети, но VITE_API_BASE_URL всё ещё указывает на localhost/127.0.0.1. Укажите LAN IP ноутбука в frontend/.env.',
+        'Frontend открыт по локальной сети, но API всё ещё указывает на localhost/127.0.0.1. Укажите LAN IP ноутбука в frontend/.env.local через VITE_API_URL.',
       )
+    }
+
+    if (!error.response) {
+      return new Error(getBackendUnavailableMessage())
     }
   }
   return new Error(fallbackMessage)

@@ -43,6 +43,7 @@ export type PresentationStatusEvent = {
   status: LoadState | 'idle' | 'presenting'
   message: string
   slides?: PresentationSlide[]
+  documentUrl?: string
   fileName?: string
   source?: PresentationSource
 }

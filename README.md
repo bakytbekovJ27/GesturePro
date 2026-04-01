@@ -65,13 +65,32 @@ npm install
 npm run dev
 ```
 
-Для телефона по локальной сети укажите в `frontend/.env` адрес ноутбука:
+По умолчанию web-клиенты сами вычисляют backend URL от hostname страницы:
 
 ```bash
+http://localhost:5173 -> http://localhost:8000/api/v1
+http://localhost:1420 -> http://localhost:8000/api/v1
+http://<LAN-IP>:5173 -> http://<LAN-IP>:8000/api/v1
+http://<LAN-IP>:1420 -> http://<LAN-IP>:8000/api/v1
+```
+
+Если нужен ручной override, используйте:
+
+```bash
+VITE_API_URL=http://<LAN-IP>:8000
+# или legacy:
 VITE_API_BASE_URL=http://<LAN-IP>:8000/api/v1
 ```
 
-И добавьте тот же `<LAN-IP>` в `backend/.env`:
+После изменения `.env`/`.env.local` перезапустите Vite dev server.
+
+Для телефона по локальной сети backend должен быть запущен именно так:
+
+```bash
+python backend/manage.py runserver 0.0.0.0:8000
+```
+
+И тот же `<LAN-IP>` должен быть разрешён в `backend/.env`:
 
 ```bash
 DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,<LAN-IP>
@@ -79,7 +98,7 @@ DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000,http://<
 DJANGO_CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173,http://<LAN-IP>:5173
 ```
 
-После этого frontend будет доступен с телефона по адресу `http://<LAN-IP>:5173`.
+После этого frontend будет доступен с телефона по адресу `http://<LAN-IP>:5173`, а browser desktop при желании можно открыть по `http://<LAN-IP>:1420`.
 
 ## Переменные окружения backend
 

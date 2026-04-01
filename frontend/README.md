@@ -18,32 +18,48 @@ npm install
 npm run dev
 ```
 
-Переменная окружения:
+По умолчанию frontend сам вычисляет backend URL от hostname страницы:
 
 ```bash
-VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+http://localhost:5173 -> http://localhost:8000/api/v1
+http://192.168.51.99:5173 -> http://192.168.51.99:8000/api/v1
 ```
 
-## Запуск с телефона по локальной сети
-
-1. Узнайте LAN IP ноутбука, например `192.168.0.105`.
-2. Укажите этот адрес в `frontend/.env`:
+Если нужен ручной override:
 
 ```bash
-VITE_API_BASE_URL=http://<LAN-IP>:8000/api/v1
+VITE_API_URL=http://localhost:8000
+# или legacy:
+VITE_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-3. Запустите backend на всех интерфейсах:
+После изменения `.env`/`.env.local` перезапустите Vite dev server.
+
+## Локальный ноутбук
+
+- Достаточно обычного backend на `localhost:8000`
+- PIN pairing на `localhost:5173` будет работать без отдельной LAN-настройки
+
+## Телефон / локальная сеть
+
+1. Узнайте LAN IP ноутбука, например `192.168.51.99`.
+2. Запустите backend на всех интерфейсах:
 
 ```bash
 cd ../backend
 python manage.py runserver 0.0.0.0:8000
 ```
 
-4. Откройте frontend с телефона:
+3. Откройте frontend с телефона:
 
 ```text
 http://<LAN-IP>:5173
+```
+
+4. Если нужен явный override, укажите его в `frontend/.env.local`:
+
+```bash
+VITE_API_URL=http://<LAN-IP>:8000
 ```
 
 ## Production build

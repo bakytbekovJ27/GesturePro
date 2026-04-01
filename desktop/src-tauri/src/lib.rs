@@ -1,7 +1,6 @@
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
-  env,
   io::{BufRead, BufReader, Write},
   path::PathBuf,
   process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, ExitStatus, Stdio},
@@ -180,53 +179,35 @@ fn stop_sidecar_inner(app: &AppHandle, manager: &Arc<SidecarManager>) -> Result<
 }
 
 fn spawn_sidecar_process() -> Result<(Child, ChildStdin, ChildStdout, ChildStderr), String> {
-  let script_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sidecar/runtime.py");
+  let script_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sidecar/runtime");
   let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
 
-  let mut candidates: Vec<String> = Vec::new();
-  if let Ok(explicit) = env::var("GESTUREPRO_PYTHON_BIN") {
-    if !explicit.trim().is_empty() {
-      candidates.push(explicit);
+  let mut command = Command::new(&script_path);
+  command
+    .current_dir(&repo_root)
+    .env("PYTHONUNBUFFERED", "1")
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+
+  match command.spawn() {
+    Ok(mut child) => {
+      let stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "failed to capture sidecar stdin".to_string())?;
+      let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture sidecar stdout".to_string())?;
+      let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "failed to capture sidecar stderr".to_string())?;
+      Ok((child, stdin, stdout, stderr))
     }
+    Err(err) => Err(format!("Unable to start Python sidecar wrapper: {err}")),
   }
-  candidates.push("python3".to_string());
-  candidates.push("python".to_string());
-
-  let mut last_error = String::new();
-  for python in candidates {
-    let mut command = Command::new(&python);
-    command
-      .arg("-u")
-      .arg(&script_path)
-      .current_dir(&repo_root)
-      .env("PYTHONUNBUFFERED", "1")
-      .stdin(Stdio::piped())
-      .stdout(Stdio::piped())
-      .stderr(Stdio::piped());
-
-    match command.spawn() {
-      Ok(mut child) => {
-        let stdin = child
-          .stdin
-          .take()
-          .ok_or_else(|| "failed to capture sidecar stdin".to_string())?;
-        let stdout = child
-          .stdout
-          .take()
-          .ok_or_else(|| "failed to capture sidecar stdout".to_string())?;
-        let stderr = child
-          .stderr
-          .take()
-          .ok_or_else(|| "failed to capture sidecar stderr".to_string())?;
-        return Ok((child, stdin, stdout, stderr));
-      }
-      Err(err) => {
-        last_error = format!("{python}: {err}");
-      }
-    }
-  }
-
-  Err(format!("Unable to start Python sidecar. Last error: {last_error}"))
 }
 
 fn forward_stdout(stdout: ChildStdout, app: AppHandle) {

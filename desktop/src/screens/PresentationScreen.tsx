@@ -3,7 +3,9 @@ import type { GestureMode, GestureState, PresentationSlide } from '../types/desk
 
 type PresentationScreenProps = {
   t: Translator
+  title: string
   slides: PresentationSlide[]
+  documentUrl: string | null
   currentIndex: number
   activeGesture: GestureState
   gestureMode: GestureMode
@@ -18,7 +20,9 @@ type PresentationScreenProps = {
 
 export function PresentationScreen({
   t,
+  title,
   slides,
+  documentUrl,
   currentIndex,
   activeGesture,
   gestureMode,
@@ -31,14 +35,16 @@ export function PresentationScreen({
   cameraFrame,
 }: PresentationScreenProps) {
   const slide = slides[currentIndex]
-  const progressWidth = slides.length > 0 ? `${((currentIndex + 1) / slides.length) * 100}%` : '0%'
+  const hasSlides = slides.length > 0
+  const progressWidth = hasSlides ? `${((currentIndex + 1) / slides.length) * 100}%` : '0%'
+  const deckTitle = slide?.title ?? title
 
   return (
     <section className="screen screen--presentation">
       <div className="presentation-topbar">
         <div>
           <p className="screen-eyebrow">{t('presentation_title')}</p>
-          <h1 className="presentation-deck-title">{slide?.title ?? 'Deck'}</h1>
+          <h1 className="presentation-deck-title">{deckTitle}</h1>
         </div>
         <div className="presentation-actions">
           <button className="text-button" onClick={onMenu}>
@@ -51,7 +57,17 @@ export function PresentationScreen({
       </div>
 
       <div className="presentation-stage">
-        {slide ? <img src={slide.imageUrl} alt={slide.title} className="presentation-stage__image" /> : null}
+        {documentUrl ? (
+          <iframe
+            src={documentUrl}
+            title={deckTitle}
+            className="presentation-stage__document"
+          />
+        ) : slide ? (
+          <img src={slide.imageUrl} alt={slide.title} className="presentation-stage__image" />
+        ) : (
+          <div className="presentation-stage__empty">{statusMessage}</div>
+        )}
 
         <div className="stage-overlay stage-overlay--left">
           <span className={`status-pill ${systemActive ? 'status-pill--success' : ''}`}>
@@ -80,10 +96,10 @@ export function PresentationScreen({
       </div>
 
       <div className="presentation-toolbar">
-        <button className="toolbar-button" onClick={onPrev}>
+        <button className="toolbar-button" onClick={onPrev} disabled={!hasSlides}>
           {t('presentation_prev')}
         </button>
-        <button className="toolbar-button" onClick={onNext}>
+        <button className="toolbar-button" onClick={onNext} disabled={!hasSlides}>
           {t('presentation_next')}
         </button>
       </div>
@@ -94,15 +110,24 @@ export function PresentationScreen({
           <strong>{t(gestureModeLabelKey(gestureMode))}</strong>
         </div>
         <div className="hud-item hud-item--wide">
-          <span>
-            {t('hud_slide')} {currentIndex + 1} {t('hud_of')} {slides.length}
-          </span>
-          <div className="progress-track">
-            <div
-              className="progress-track__fill"
-              style={{ width: progressWidth }}
-            />
-          </div>
+          {hasSlides ? (
+            <>
+              <span>
+                {t('hud_slide')} {currentIndex + 1} {t('hud_of')} {slides.length}
+              </span>
+              <div className="progress-track">
+                <div
+                  className="progress-track__fill"
+                  style={{ width: progressWidth }}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <span>{t('hud_pdf')}</span>
+              <strong>{deckTitle}</strong>
+            </>
+          )}
         </div>
         <div className="hud-item hud-item--wide">
           <span>{statusMessage}</span>

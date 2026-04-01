@@ -21,14 +21,21 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-Для телефона по локальной сети:
+Локальный сценарий:
+
+- `http://localhost:8000` достаточно для pairing на этом же ноутбуке
+- web-клиенты на `localhost:5173` и `localhost:1420` сами подхватят `localhost:8000`
+
+Для телефона по локальной сети backend обязательно должен слушать все интерфейсы:
 
 ```bash
 python manage.py runserver 0.0.0.0:8000
 ```
 
-И добавьте LAN IP ноутбука в:
+И проверьте, что LAN IP ноутбука добавлен в:
 
 - `DJANGO_ALLOWED_HOSTS`
 - `DJANGO_CSRF_TRUSTED_ORIGINS`
 - `DJANGO_CORS_ALLOWED_ORIGINS`
+
+Если backend слушает только `127.0.0.1:8000`, то PIN может существовать в базе, но pairing с телефона по `http://<LAN-IP>:8000` работать не будет.

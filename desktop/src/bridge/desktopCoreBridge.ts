@@ -2,7 +2,7 @@ import type { CoreEvent } from '../types/desktop'
 
 export type CoreListener = (event: CoreEvent) => void
 
-export type BridgeKind = 'mock' | 'sidecar'
+export type BridgeKind = 'mock' | 'sidecar' | 'browser'
 
 export interface DesktopCoreBridge {
   readonly kind: BridgeKind

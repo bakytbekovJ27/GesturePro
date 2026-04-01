@@ -37,6 +37,7 @@ function App() {
   const [fileName, setFileName] = useState<string | null>(null)
   const [source, setSource] = useState<PresentationSource | null>(null)
   const [slides, setSlides] = useState<PresentationSlide[]>([])
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null)
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
   const [activeGesture, setActiveGesture] = useState<GestureState>('NONE')
   const [gestureMode, setGestureMode] = useState<GestureMode>('idle')
@@ -64,6 +65,8 @@ function App() {
           : runtimeState === 'error'
             ? t('badge_error')
             : t('badge_bridge')
+  const shellLabel = bridge.kind === 'browser' ? 'Web Desktop GUI' : 'Tauri Desktop GUI'
+  const shellBadge = bridge.kind === 'browser' ? 'WEB' : 'TAURI'
 
   async function handlePickFile() {
     setLoadState('loading')
@@ -110,6 +113,7 @@ function App() {
         return
       case 'presentation_status':
         setLoadStatus(event.message)
+        setPresentationStatus(event.message)
         setFileName(event.fileName ?? null)
         setSource(event.source ?? null)
 
@@ -123,10 +127,11 @@ function App() {
           return
         }
 
-        if (event.status === 'ready' && event.slides) {
+        if (event.status === 'ready' && (event.slides || event.documentUrl)) {
           setLoadState('ready')
           startTransition(() => {
             setSlides(event.slides ?? [])
+            setDocumentUrl(event.documentUrl ?? null)
             setCurrentSlideIndex(0)
             setScreen('presentation')
           })
@@ -150,12 +155,20 @@ function App() {
         setLoadState('error')
         setLoadStatus(event.message)
         setPresentationStatus(event.message)
+        if (pinDisplay === '••• •••') {
+          setSessionState('failed')
+          setSessionMessage(event.message)
+        }
         return
       case 'runtime_status':
         setRuntimeState(event.status)
         setRuntimeMessage(event.message)
-        if (event.status === 'error') {
+        if (event.status === 'error' || event.status === 'degraded') {
           setPresentationStatus(event.message)
+          if (pinDisplay === '••• •••') {
+            setSessionState('failed')
+            setSessionMessage(event.message)
+          }
         }
         return
       case 'presentation_command':
@@ -224,8 +237,21 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = bridge.subscribe(handleCoreEvent)
-    void bridge.startSession()
+    let disposed = false
+    void bridge.startSession().catch((error) => {
+      if (disposed) {
+        return
+      }
+      const message = error instanceof Error ? error.message : 'Desktop bridge failed to start.'
+      setPinDisplay('••• •••')
+      setSessionState('failed')
+      setSessionMessage(message)
+      setRuntimeState('error')
+      setRuntimeMessage(message)
+      setPresentationStatus(message)
+    })
     return () => {
+      disposed = true
       unsubscribe()
       void bridge.stopSession()
       void bridge.dispose()
@@ -256,10 +282,10 @@ function App() {
       <div className="app-shell__chrome">
         <div>
           <span className="app-shell__eyebrow">GesturePro</span>
-          <strong>Tauri Desktop GUI</strong>
+          <strong>{shellLabel}</strong>
         </div>
         <div className="app-shell__chrome-right">
-          <span className="status-pill">{t('badge_tauri')}</span>
+          <span className="status-pill">{shellBadge}</span>
           <span className="status-pill">{runtimeBadge}</span>
           <span className="status-pill status-pill--accent">{pinDisplay}</span>
         </div>
@@ -304,7 +330,9 @@ function App() {
       {screen === 'presentation' ? (
         <PresentationScreen
           t={t}
+          title={fileName ?? slides[currentSlideIndex]?.title ?? 'Deck'}
           slides={slides}
+          documentUrl={documentUrl}
           currentIndex={currentSlideIndex}
           activeGesture={activeGesture}
           gestureMode={gestureMode}
