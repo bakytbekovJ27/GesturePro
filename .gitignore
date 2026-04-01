@@ -35,4 +35,10 @@ frontend/.vite/
 frontend/.env
 frontend/.env.*
 
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/.env
+desktop/.env.*
+
 Example.pdf

@@ -11,6 +11,7 @@ GesturePro объединяет три части:
 ```text
 GesturePro/
 ├── backend/             # Django API, server config, env, requirements
+├── desktop/             # Tauri desktop GUI shell (new)
 ├── frontend/            # React + Vite PWA
 ├── core/                # жесты, рендеринг, загрузка слайдов
 ├── screens/             # экраны desktop-приложения
@@ -36,7 +37,7 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 cp backend/.env.example backend/.env
 python backend/manage.py migrate
-python backend/manage.py runserver
+python backend/manage.py runserver 0.0.0.0:8000
 ```
 
 Desktop-приложение запускается отдельно:
@@ -44,6 +45,16 @@ Desktop-приложение запускается отдельно:
 ```bash
 python main.py
 ```
+
+### 1.1. Новый Tauri desktop shell
+
+```bash
+cd desktop
+npm install
+npm run tauri dev
+```
+
+Старый Python desktop остаётся в проекте и пока не удаляется. Новый `desktop/` сейчас реализует GUI-first слой для следующей интеграции с `core/`.
 
 ### 2. Frontend
 
@@ -54,7 +65,21 @@ npm install
 npm run dev
 ```
 
-По умолчанию frontend использует backend `http://127.0.0.1:8000/api/v1`.
+Для телефона по локальной сети укажите в `frontend/.env` адрес ноутбука:
+
+```bash
+VITE_API_BASE_URL=http://<LAN-IP>:8000/api/v1
+```
+
+И добавьте тот же `<LAN-IP>` в `backend/.env`:
+
+```bash
+DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,<LAN-IP>
+DJANGO_CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000,http://<LAN-IP>:8000
+DJANGO_CORS_ALLOWED_ORIGINS=http://127.0.0.1:5173,http://localhost:5173,http://<LAN-IP>:5173
+```
+
+После этого frontend будет доступен с телефона по адресу `http://<LAN-IP>:5173`.
 
 ## Переменные окружения backend
 

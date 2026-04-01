@@ -20,3 +20,15 @@ cp .env.example .env
 python manage.py migrate
 python manage.py runserver
 ```
+
+Для телефона по локальной сети:
+
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
+
+И добавьте LAN IP ноутбука в:
+
+- `DJANGO_ALLOWED_HOSTS`
+- `DJANGO_CSRF_TRUSTED_ORIGINS`
+- `DJANGO_CORS_ALLOWED_ORIGINS`

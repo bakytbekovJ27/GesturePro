@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type { AxiosProgressEvent } from 'axios'
-import { apiClient, getAuthHeaders } from './client'
+import { apiClient, getAuthHeaders, isLanApiMisconfigured } from './client'
 import type { PairingResponse, PresentationSummary } from '../types/api'
 
 
@@ -85,6 +85,12 @@ function mapApiError(error: unknown, fallbackMessage: string) {
     const detail = error.response?.data?.detail
     if (typeof detail === 'string' && detail) {
       return new Error(detail)
+    }
+
+    if (isLanApiMisconfigured()) {
+      return new Error(
+        'Frontend открыт по локальной сети, но VITE_API_BASE_URL всё ещё указывает на localhost/127.0.0.1. Укажите LAN IP ноутбука в frontend/.env.',
+      )
     }
   }
   return new Error(fallbackMessage)
