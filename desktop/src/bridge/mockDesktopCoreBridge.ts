@@ -80,6 +80,10 @@ export class MockDesktopCoreBridge implements MockDesktopCoreBridgeContract {
 
   private gestureTimer: number | null = null
 
+  private cameraTimer: number | null = null
+
+  private cameraFrameIndex = 0
+
   private gestureIndex = 0
 
   subscribe(listener: CoreListener): () => void {
@@ -160,12 +164,26 @@ export class MockDesktopCoreBridge implements MockDesktopCoreBridgeContract {
       this.gestureIndex = (this.gestureIndex + 1) % gestureFrames.length
       this.pushGestureFrame(gestureFrames[this.gestureIndex])
     }, 2200)
+
+    this.cameraFrameIndex = 0
+    this.cameraTimer = window.setInterval(() => {
+      this.cameraFrameIndex += 1
+      this.emit({
+        type: 'camera_frame',
+        data: this.mockCameraDataUrl(),
+      })
+    }, 200)
   }
 
   async stopGestureCore(): Promise<void> {
     if (this.gestureTimer !== null) {
       window.clearInterval(this.gestureTimer)
       this.gestureTimer = null
+    }
+
+    if (this.cameraTimer !== null) {
+      window.clearInterval(this.cameraTimer)
+      this.cameraTimer = null
     }
 
     this.emit({
@@ -255,5 +273,18 @@ export class MockDesktopCoreBridge implements MockDesktopCoreBridgeContract {
     this.listeners.forEach((listener) => {
       listener(event)
     })
+  }
+
+  private mockCameraDataUrl(): string {
+    const hue = (this.cameraFrameIndex * 7) % 360
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+      <rect width="320" height="180" fill="hsl(${hue}, 18%, 10%)"/>
+      <circle cx="160" cy="90" r="50" fill="none" stroke="hsl(${hue}, 60%, 50%)" stroke-width="2" opacity="0.5"/>
+      <circle cx="160" cy="90" r="25" fill="none" stroke="hsl(${hue}, 60%, 50%)" stroke-width="1" opacity="0.3"/>
+      <line x1="160" y1="40" x2="160" y2="140" stroke="rgba(255,255,255,0.08)"/>
+      <line x1="110" y1="90" x2="210" y2="90" stroke="rgba(255,255,255,0.08)"/>
+      <text x="160" y="165" text-anchor="middle" font-family="monospace" font-size="11" fill="rgba(255,255,255,0.5)">MOCK CAMERA</text>
+    </svg>`
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
   }
 }

@@ -64,6 +64,11 @@ export type PresentationCommandEvent = {
   action: PresentationCommand
 }
 
+export type CameraFrameEvent = {
+  type: 'camera_frame'
+  data: string
+}
+
 export type CoreEvent =
   | SessionStatusEvent
   | GestureStateEvent
@@ -71,3 +76,4 @@ export type CoreEvent =
   | CoreErrorEvent
   | RuntimeStatusEvent
   | PresentationCommandEvent
+  | CameraFrameEvent

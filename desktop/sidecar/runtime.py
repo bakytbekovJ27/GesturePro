@@ -14,6 +14,8 @@ Responsibilities:
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 import os
 import shutil
@@ -47,6 +49,10 @@ SLIDE_COOLDOWN = 0.8
 CAMERA_WIDTH = 1280
 CAMERA_HEIGHT = 720
 CAMERA_FPS = 30
+PIP_WIDTH = 320
+PIP_HEIGHT = 180
+PIP_FPS = 10
+PIP_JPEG_QUALITY = 65
 GESTURE_NONE = "NONE"
 GESTURE_FIST = "FIST"
 GESTURE_POINT = "POINT"
@@ -458,6 +464,8 @@ class SidecarRuntime:
         cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
 
         detector = None
+        pip_interval = 1.0 / PIP_FPS
+        last_pip_at = 0.0
 
         try:
             if not cap.isOpened():
@@ -480,11 +488,33 @@ class SidecarRuntime:
                 frame = cv2.flip(frame, 1)
                 result = detector.process(frame)
                 self._process_gesture_result(result, detector)
+
+                now = time.time()
+                if now - last_pip_at >= pip_interval:
+                    last_pip_at = now
+                    annotated = result.get("annotated")
+                    if annotated is not None:
+                        data_url = self._encode_pip_frame(annotated)
+                        if data_url:
+                            self.emit({"type": "camera_frame", "data": data_url})
+
                 time.sleep(0.03)
         finally:
             if detector is not None:
                 detector.close()
             cap.release()
+
+    @staticmethod
+    def _encode_pip_frame(frame: Any) -> str | None:
+        try:
+            small = cv2.resize(frame, (PIP_WIDTH, PIP_HEIGHT), interpolation=cv2.INTER_AREA)
+            ok, buf = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, PIP_JPEG_QUALITY])
+            if not ok:
+                return None
+            b64 = base64.b64encode(buf.tobytes()).decode("ascii")
+            return f"data:image/jpeg;base64,{b64}"
+        except Exception:
+            return None
 
     def _process_gesture_result(self, result: dict[str, Any], detector: GestureDetector) -> None:
         state = self._gesture_state
@@ -555,12 +585,16 @@ class SidecarRuntime:
 
         if gesture == GESTURE_POINT:
             self.emit_gesture_state(GESTURE_POINT, "draw", True, "Draw mode gesture detected.")
+            idx_tip = landmarks.landmark[detector._mp_hands.HandLandmark.INDEX_FINGER_TIP]
+            self.emit({"type": "cursor_move", "x": round(idx_tip.x, 4), "y": round(idx_tip.y, 4)})
             return
         if gesture == GESTURE_THUMB:
             self.emit_gesture_state(GESTURE_THUMB, "erase", True, "Eraser gesture detected.")
+            self.emit({"type": "draw_command", "action": "undo"})
             return
         if gesture == GESTURE_PALM:
             self.emit_gesture_state(GESTURE_PALM, "clear", True, "Clear gesture detected.")
+            self.emit({"type": "draw_command", "action": "clear"})
             return
 
         self.emit_gesture_state(gesture, "idle", True, "System armed.")

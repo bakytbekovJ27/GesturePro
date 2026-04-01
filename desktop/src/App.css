@@ -597,6 +597,14 @@
   background-size: 100% 28px;
 }
 
+.pip-widget__viewport {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 0;
+}
+
 .pip-widget__meta {
   display: flex;
   flex-direction: column;

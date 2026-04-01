@@ -13,6 +13,7 @@ type PresentationScreenProps = {
   onNext: () => void
   onMenu: () => void
   onLoad: () => void
+  cameraFrame: string | null
 }
 
 export function PresentationScreen({
@@ -27,6 +28,7 @@ export function PresentationScreen({
   onNext,
   onMenu,
   onLoad,
+  cameraFrame,
 }: PresentationScreenProps) {
   const slide = slides[currentIndex]
   const progressWidth = slides.length > 0 ? `${((currentIndex + 1) / slides.length) * 100}%` : '0%'
@@ -60,7 +62,15 @@ export function PresentationScreen({
 
         <div className="stage-overlay stage-overlay--right">
           <div className="pip-widget">
-            <div className="pip-widget__mock-viewport" />
+            {cameraFrame ? (
+              <img
+                src={cameraFrame}
+                alt="Camera"
+                className="pip-widget__viewport"
+              />
+            ) : (
+              <div className="pip-widget__mock-viewport" />
+            )}
             <div className="pip-widget__meta">
               <strong>{activeGesture}</strong>
               <span>{statusMessage}</span>

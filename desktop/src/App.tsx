@@ -42,6 +42,7 @@ function App() {
   const [gestureMode, setGestureMode] = useState<GestureMode>('idle')
   const [systemActive, setSystemActive] = useState(false)
   const [presentationStatus, setPresentationStatus] = useState('Gesture core paused.')
+  const [cameraFrame, setCameraFrame] = useState<string | null>(null)
   const [runtimeState, setRuntimeState] = useState<RuntimeState>('starting')
   const [runtimeMessage, setRuntimeMessage] = useState('Desktop bridge is starting...')
   const t = createTranslator(language)
@@ -141,6 +142,9 @@ function App() {
         setGestureMode(event.mode)
         setSystemActive(event.systemActive)
         setPresentationStatus(event.message)
+        if (!event.systemActive && event.mode === 'idle' && event.gesture === 'NONE') {
+          setCameraFrame(null)
+        }
         return
       case 'core_error':
         setLoadState('error')
@@ -160,6 +164,9 @@ function App() {
         } else {
           goToPrevSlide()
         }
+        return
+      case 'camera_frame':
+        setCameraFrame(event.data)
         return
     }
   })
@@ -307,6 +314,7 @@ function App() {
           onNext={goToNextSlide}
           onMenu={() => setScreen('menu')}
           onLoad={() => setScreen('load')}
+          cameraFrame={cameraFrame}
         />
       ) : null}
 

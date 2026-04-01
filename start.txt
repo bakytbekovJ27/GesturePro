@@ -1,0 +1,26 @@
+Инструкция по запуску проекта GesturePro
+
+Откройте 3 разных терминала в корневой директории проекта и выполните следующие команды:
+
+1. BACKEND (Django API)
+-----------------------
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+
+2. FRONTEND (React + Vite Web Client)
+------------------------------------
+cd frontend
+npm install
+npm run dev
+
+3. DESKTOP (Tauri Desktop App)
+-----------------------------
+cd desktop
+npm install
+npm run tauri dev
+
+Примечание: Перед запуском backend убедитесь, что вы скопировали .env.example в .env (если это требуется).
