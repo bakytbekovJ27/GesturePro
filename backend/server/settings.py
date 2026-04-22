@@ -2,6 +2,8 @@
 import os
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -92,11 +94,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = env_bool("DJANGO_CORS_ALLOW_ALL_ORIGINS", DEBUG)
 CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://localhost:1420,http://127.0.0.1:5173,http://192.168.51.99:5173,http://192.168.51.99:1420",
+    "http://localhost:3000,http://localhost:5173,http://localhost:1420,http://127.0.0.1:3000,http://127.0.0.1:5173,http://192.168.51.99:5173,http://192.168.51.99:1420",
 )
+CORS_ALLOW_HEADERS = (*default_headers, "x-session-token")
 
 # ── DRF ──────────────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],

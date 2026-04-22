@@ -1,0 +1,6 @@
+{
+  "name": "GesturePro Mobile",
+  "description": "Mobile companion app for a gesture-controlled presentation system. Sync, upload, and control presentations on the go.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

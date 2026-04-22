@@ -3,8 +3,12 @@ from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models
 from django.utils import timezone
+
+
+User = get_user_model()
 
 
 def presentation_original_path(instance, filename):
@@ -63,6 +67,13 @@ class Presentation(models.Model):
         DeviceSession,
         on_delete=models.CASCADE,
         related_name="presentations",
+    )
+    uploaded_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="uploaded_presentations",
     )
     title = models.CharField(max_length=255)
     original_file = models.FileField(upload_to=presentation_original_path)

@@ -1,13 +1,22 @@
+import uuid
 from pathlib import Path
 
 from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import DeviceSession, Presentation
-from .serializers import DeviceSessionSerializer, PresentationSerializer
+from .serializers import (
+    DeviceSessionSerializer,
+    LoginSerializer,
+    PresentationSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
 from .services import generate_pin_code, schedule_conversion
 
 
@@ -23,11 +32,19 @@ def get_active_session_by_pin(pin_code):
 
 
 def get_authorized_session(request):
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
+    token = str(request.headers.get("X-Session-Token", "")).strip()
+    if not token:
+        header = request.headers.get("Authorization", "")
+        if header.startswith("Bearer "):
+            token = header.split(" ", 1)[1].strip()
+    if not token:
         return None
-    token = header.split(" ", 1)[1].strip()
-    session = DeviceSession.objects.filter(access_token=token, is_active=True).first()
+    try:
+        token_uuid = uuid.UUID(token)
+    except (ValueError, TypeError):
+        return None
+
+    session = DeviceSession.objects.filter(access_token=token_uuid, is_active=True).first()
     if not session:
         return None
     if session.is_expired:
@@ -35,6 +52,46 @@ def get_authorized_session(request):
         session.save(update_fields=["is_active"])
         return None
     return session
+
+
+def build_auth_response(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        "user": UserSerializer(user).data,
+        "tokens": {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        },
+    }
+
+
+class AuthRegisterView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(build_auth_response(user), status=status.HTTP_201_CREATED)
+
+
+class AuthLoginView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["user"]
+        return Response(build_auth_response(user))
+
+
+class AuthMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
 
 
 class SessionCreateView(APIView):
@@ -64,14 +121,13 @@ class SessionPairView(APIView):
 
 
 class PresentationUploadView(APIView):
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         session = get_authorized_session(request)
         if not session:
             return Response(
-                {"detail": "Требуется активная сессия."},
+                {"detail": "Требуется активная desktop-сессия."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
@@ -91,6 +147,7 @@ class PresentationUploadView(APIView):
 
         presentation = Presentation.objects.create(
             session=session,
+            uploaded_by=request.user,
             title=uploaded_file.name,
             original_file=uploaded_file,
             status=Presentation.STATUS_UPLOADING,
@@ -117,18 +174,13 @@ class PresentationUploadView(APIView):
 
 
 class PresentationRecentView(APIView):
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        session = get_authorized_session(request)
-        if not session:
-            return Response(
-                {"detail": "Требуется активная сессия."},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        presentations = session.presentations.all()[:5]
+        presentations = Presentation.objects.filter(uploaded_by=request.user).order_by(
+            "-uploaded_at",
+            "-updated_at",
+        )
         serializer = PresentationSerializer(
             presentations,
             many=True,
@@ -138,18 +190,10 @@ class PresentationRecentView(APIView):
 
 
 class PresentationStatusView(APIView):
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, presentation_id):
-        session = get_authorized_session(request)
-        if not session:
-            return Response(
-                {"detail": "Требуется активная сессия."},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        presentation = session.presentations.filter(id=presentation_id).first()
+        presentation = Presentation.objects.filter(uploaded_by=request.user, id=presentation_id).first()
         if not presentation:
             return Response(
                 {"detail": "Презентация не найдена."},
@@ -161,18 +205,17 @@ class PresentationStatusView(APIView):
 
 
 class PresentationReuseView(APIView):
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, presentation_id):
         session = get_authorized_session(request)
         if not session:
             return Response(
-                {"detail": "Требуется активная сессия."},
+                {"detail": "Требуется активная desktop-сессия."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        presentation = session.presentations.filter(id=presentation_id).first()
+        presentation = Presentation.objects.filter(uploaded_by=request.user, id=presentation_id).first()
         if not presentation:
             return Response(
                 {"detail": "Презентация не найдена."},
@@ -184,11 +227,12 @@ class PresentationReuseView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        presentation.session = session
         presentation.status = Presentation.STATUS_READY
         presentation.error_message = ""
         presentation.last_sent_at = timezone.now()
         presentation.save(
-            update_fields=["status", "error_message", "last_sent_at", "updated_at"]
+            update_fields=["session", "status", "error_message", "last_sent_at", "updated_at"]
         )
 
         serializer = PresentationSerializer(presentation, context={"request": request})
@@ -220,6 +264,10 @@ class PresentationDesktopEventView(APIView):
 
         if event_name == "downloading":
             presentation.status = Presentation.STATUS_DOWNLOADING
+            presentation.error_message = ""
+            presentation.save(update_fields=["status", "error_message", "updated_at"])
+        elif event_name == "ready":
+            presentation.status = Presentation.STATUS_READY
             presentation.error_message = ""
             presentation.save(update_fields=["status", "error_message", "updated_at"])
         elif event_name == "presenting":
@@ -266,21 +314,28 @@ class PresentationLatestView(APIView):
 
 
 class PresentationDownloadView(APIView):
-    authentication_classes = []
     permission_classes = []
 
     def get(self, request, presentation_id):
-        session = get_authorized_session(request)
-        pin_code = str(request.query_params.get("pin", "")).strip()
-        if not session and pin_code:
-            session = get_active_session_by_pin(pin_code)
-        if not session:
-            return Response(
-                {"detail": "Требуется активная сессия."},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+        presentation = None
+        if request.user.is_authenticated:
+            presentation = Presentation.objects.filter(
+                uploaded_by=request.user,
+                id=presentation_id,
+            ).first()
 
-        presentation = session.presentations.filter(id=presentation_id).first()
+        if not presentation:
+            session = get_authorized_session(request)
+            pin_code = str(request.query_params.get("pin", "")).strip()
+            if not session and pin_code:
+                session = get_active_session_by_pin(pin_code)
+            if not session:
+                return Response(
+                    {"detail": "Требуется авторизация или активная desktop-сессия."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+            presentation = session.presentations.filter(id=presentation_id).first()
+
         if not presentation or not presentation.pdf_file:
             return Response(
                 {"detail": "PDF-файл не найден."},

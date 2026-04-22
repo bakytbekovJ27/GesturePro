@@ -15,6 +15,7 @@ type RemotePresentationResponse = {
   id: string
   title?: string
   download_url?: string | null
+  last_sent_at?: string | null
 }
 
 const POLL_INTERVAL_MS = 2_500
@@ -74,7 +75,9 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
 
   private currentDocumentUrl: string | null = null
 
-  private lastRemotePresentationId: string | null = null
+  private currentRemotePresentationId: string | null = null
+
+  private lastRemoteSyncKey: string | null = null
 
   private remoteWaitingAnnounced = false
 
@@ -142,7 +145,8 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
     this.clearPollTimer()
     this.stopCameraPreview()
     this.sessionPin = null
-    this.lastRemotePresentationId = null
+    this.currentRemotePresentationId = null
+    this.lastRemoteSyncKey = null
     this.remoteWaitingAnnounced = false
     this.revokeDocumentUrl()
     this.emit({
@@ -231,6 +235,13 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
   }
 
   async stopGestureCore(): Promise<void> {
+    const currentRemotePresentationId = this.currentRemotePresentationId
+    this.currentRemotePresentationId = null
+
+    if (currentRemotePresentationId) {
+      await this.notifyDesktopEvent(currentRemotePresentationId, 'ready')
+    }
+
     this.stopCameraPreview()
     emitGestureIdle((event) => this.emit(event), 'Browser viewer mode is active.')
   }
@@ -260,7 +271,8 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
     }
 
     this.sessionPin = pinCode
-    this.lastRemotePresentationId = null
+    this.currentRemotePresentationId = null
+    this.lastRemoteSyncKey = null
     this.remoteWaitingAnnounced = false
     this.emitSessionReady(pinCode)
     this.emit({
@@ -326,7 +338,8 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
 
       if (response.status === 404) {
         this.sessionPin = null
-        this.lastRemotePresentationId = null
+        this.currentRemotePresentationId = null
+        this.lastRemoteSyncKey = null
         this.remoteWaitingAnnounced = false
         this.emit({
           type: 'session_status',
@@ -346,11 +359,11 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
 
       const payload = (await response.json()) as RemotePresentationResponse
       const presentationId = String(payload.id ?? '').trim()
+      const syncKey = this.buildRemoteSyncKey(payload)
       this.remoteWaitingAnnounced = false
 
-      if (presentationId && presentationId !== this.lastRemotePresentationId) {
-        this.lastRemotePresentationId = presentationId
-        await this.syncRemotePresentation(payload)
+      if (presentationId && syncKey && syncKey !== this.lastRemoteSyncKey) {
+        await this.syncRemotePresentation(payload, syncKey)
       }
 
       this.scheduleNextPoll()
@@ -368,7 +381,10 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
     }
   }
 
-  private async syncRemotePresentation(payload: RemotePresentationResponse): Promise<void> {
+  private async syncRemotePresentation(
+    payload: RemotePresentationResponse,
+    syncKey: string,
+  ): Promise<void> {
     const presentationId = String(payload.id ?? '').trim()
     if (!presentationId || !this.sessionPin) {
       return
@@ -404,6 +420,8 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
         message: `${fileName} is ready on the browser desktop.`,
       })
       await this.notifyDesktopEvent(presentationId, 'presenting')
+      this.currentRemotePresentationId = presentationId
+      this.lastRemoteSyncKey = syncKey
       this.emit({
         type: 'runtime_status',
         status: 'ready',
@@ -442,7 +460,7 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
 
   private async notifyDesktopEvent(
     presentationId: string,
-    eventName: 'downloading' | 'presenting' | 'error',
+    eventName: 'downloading' | 'ready' | 'presenting' | 'error',
     message = '',
   ) {
     if (!this.sessionPin) {
@@ -468,6 +486,16 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
         message: 'Failed to update desktop event status in the backend.',
       })
     }
+  }
+
+  private buildRemoteSyncKey(payload: RemotePresentationResponse): string | null {
+    const presentationId = String(payload.id ?? '').trim()
+    if (!presentationId) {
+      return null
+    }
+
+    const lastSentAt = String(payload.last_sent_at ?? '').trim()
+    return `${presentationId}:${lastSentAt}`
   }
 
   private emitPresentationError(message: string, fileName?: string, source?: PresentationSource) {

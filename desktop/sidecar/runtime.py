@@ -102,7 +102,8 @@ class SidecarRuntime:
 
         self._session_pin: str | None = None
         self._session_display = "••• •••"
-        self._last_remote_presentation_id: str | None = None
+        self._current_remote_presentation_id: str | None = None
+        self._last_remote_sync_key: str | None = None
         self._sync_thread: threading.Thread | None = None
         self._sync_stop_evt = threading.Event()
         self._remote_waiting_announced = False
@@ -181,7 +182,8 @@ class SidecarRuntime:
         with self._lock:
             self._session_pin = None
             self._session_display = "••• •••"
-            self._last_remote_presentation_id = None
+            self._current_remote_presentation_id = None
+            self._last_remote_sync_key = None
             self._remote_waiting_announced = False
             self._session_failure_announced = False
 
@@ -256,6 +258,16 @@ class SidecarRuntime:
         self.start_gesture_runtime()
 
     def leave_presentation(self) -> None:
+        current_remote_presentation_id = self._current_remote_presentation_id
+        self._current_remote_presentation_id = None
+
+        if current_remote_presentation_id and self._session_pin:
+            client = requests.Session()
+            try:
+                self._notify_desktop_event(client, current_remote_presentation_id, "ready")
+            finally:
+                client.close()
+
         self._presentation_active = False
         self.stop_gesture_runtime()
 
@@ -327,6 +339,8 @@ class SidecarRuntime:
         with self._lock:
             self._session_pin = pin_code
             self._session_display = self._format_pin(pin_code)
+            self._current_remote_presentation_id = None
+            self._last_remote_sync_key = None
             self._remote_waiting_announced = False
             self._session_failure_announced = False
 
@@ -348,9 +362,9 @@ class SidecarRuntime:
         if response.status_code == 200:
             payload = response.json()
             presentation_id = str(payload.get("id", "")).strip()
-            if presentation_id and presentation_id != self._last_remote_presentation_id:
-                self._last_remote_presentation_id = presentation_id
-                self._sync_remote_presentation(client, payload)
+            sync_key = self._build_remote_sync_key(payload)
+            if presentation_id and sync_key and sync_key != self._last_remote_sync_key:
+                self._sync_remote_presentation(client, payload, sync_key)
             return
 
         if response.status_code == 204:
@@ -370,6 +384,8 @@ class SidecarRuntime:
             with self._lock:
                 self._session_pin = None
                 self._session_display = "••• •••"
+                self._current_remote_presentation_id = None
+                self._last_remote_sync_key = None
                 self._remote_waiting_announced = False
                 self._session_failure_announced = False
             self.emit_session_status(
@@ -382,7 +398,12 @@ class SidecarRuntime:
 
         response.raise_for_status()
 
-    def _sync_remote_presentation(self, client: requests.Session, payload: dict[str, Any]) -> None:
+    def _sync_remote_presentation(
+        self,
+        client: requests.Session,
+        payload: dict[str, Any],
+        sync_key: str,
+    ) -> None:
         presentation_id = str(payload.get("id", "")).strip()
         if not presentation_id or not self._session_pin:
             return
@@ -423,6 +444,8 @@ class SidecarRuntime:
                 raise RuntimeError("Desktop could not open the downloaded PDF.")
 
             self._notify_desktop_event(client, presentation_id, "presenting")
+            self._current_remote_presentation_id = presentation_id
+            self._last_remote_sync_key = sync_key
             self._finalize_loaded_slides(
                 slides=slides,
                 file_name=title,
@@ -433,6 +456,15 @@ class SidecarRuntime:
         except Exception as exc:
             self._notify_desktop_event(client, presentation_id, "error", str(exc))
             self.emit_presentation_error(f"Remote sync failed: {exc}", file_name=title, source="remote")
+
+    @staticmethod
+    def _build_remote_sync_key(payload: dict[str, Any]) -> str | None:
+        presentation_id = str(payload.get("id", "")).strip()
+        if not presentation_id:
+            return None
+
+        last_sent_at = str(payload.get("last_sent_at") or "").strip()
+        return f"{presentation_id}:{last_sent_at}"
 
     def _notify_desktop_event(
         self,

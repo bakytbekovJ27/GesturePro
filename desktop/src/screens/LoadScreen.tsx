@@ -47,12 +47,19 @@ export function LoadScreen({
       <div className="screen-header">
         <p className="screen-eyebrow">{t('load_or')}</p>
         <h1 className="screen-title">{t('load_title')}</h1>
+        <p className="screen-subtitle">
+          Route a deck from the phone or load a local file without leaving the desktop shell.
+        </p>
       </div>
 
       <div className="load-layout">
         <div className="surface-card load-primary-card">
           <div className="load-primary-card__graphic">
             <div className={`file-orb file-orb--${loadState}`} />
+          </div>
+          <div className="load-primary-card__status">
+            <span className="status-dot status-dot--ready" />
+            <span>{statusMessage || t('load_remote_ready')}</span>
           </div>
           <h2>{t('load_hint')}</h2>
           <p>{loadState === 'idle' ? t('load_idle') : statusMessage}</p>
@@ -100,6 +107,7 @@ export function LoadScreen({
               {sourceLabel ? <span className="source-badge">{sourceLabel}</span> : null}
             </div>
             <strong>{fileName ?? t('load_no_file')}</strong>
+            <small>Local and remote sources share the same presentation runtime once loaded.</small>
           </div>
         </div>
       </div>

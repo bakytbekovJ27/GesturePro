@@ -19,6 +19,9 @@ export function SettingsScreen({
       <div className="screen-header">
         <p className="screen-eyebrow">{t('menu_subtitle')}</p>
         <h1 className="screen-title">{t('settings_title')}</h1>
+        <p className="screen-subtitle">
+          Manage language and keep the new desktop shell aligned with the runtime direction.
+        </p>
       </div>
 
       <div className="settings-layout">
@@ -49,6 +52,11 @@ export function SettingsScreen({
             Tauri now owns the desktop GUI shell. The next iteration can attach the existing Python
             core through a stable bridge without keeping any OpenCV window UI.
           </p>
+          <div className="settings-pill-row">
+            <span className="status-pill status-pill--accent">React + Vite</span>
+            <span className="status-pill">Tauri Shell</span>
+            <span className="status-pill status-pill--success">Typed Events</span>
+          </div>
           <ul className="settings-list">
             <li>React + Vite screens</li>
             <li>Typed core event model</li>

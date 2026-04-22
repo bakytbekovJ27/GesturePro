@@ -45,6 +45,9 @@ export function PresentationScreen({
         <div>
           <p className="screen-eyebrow">{t('presentation_title')}</p>
           <h1 className="presentation-deck-title">{deckTitle}</h1>
+          <p className="screen-subtitle">
+            Keep the stage clean while gesture state, progress, and camera confidence stay visible.
+          </p>
         </div>
         <div className="presentation-actions">
           <button className="text-button" onClick={onMenu}>
@@ -88,6 +91,7 @@ export function PresentationScreen({
               <div className="pip-widget__mock-viewport" />
             )}
             <div className="pip-widget__meta">
+              <span className="pip-widget__signal">{t(gestureModeLabelKey(gestureMode))}</span>
               <strong>{activeGesture}</strong>
               <span>{statusMessage}</span>
             </div>
@@ -121,6 +125,7 @@ export function PresentationScreen({
                   style={{ width: progressWidth }}
                 />
               </div>
+              <strong className="hud-highlight">{Math.round(((currentIndex + 1) / slides.length) * 100)}% ready</strong>
             </>
           ) : (
             <>

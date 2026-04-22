@@ -63,10 +63,8 @@ function App() {
         : runtimeState === 'degraded'
           ? t('badge_degraded')
           : runtimeState === 'error'
-            ? t('badge_error')
-            : t('badge_bridge')
-  const shellLabel = bridge.kind === 'browser' ? 'Web Desktop GUI' : 'Tauri Desktop GUI'
-  const shellBadge = bridge.kind === 'browser' ? 'WEB' : 'TAURI'
+          ? t('badge_error')
+          : t('badge_bridge')
 
   async function handlePickFile() {
     setLoadState('loading')
@@ -280,20 +278,24 @@ function App() {
   return (
     <div className="app-shell">
       <div className="app-shell__chrome">
-        <div>
+        <div className="app-shell__chrome-copy">
           <span className="app-shell__eyebrow">GesturePro</span>
-          <strong>{shellLabel}</strong>
+          <strong className="app-shell__title">Desktop Control</strong>
         </div>
         <div className="app-shell__chrome-right">
-          <span className="status-pill">{shellBadge}</span>
-          <span className="status-pill">{runtimeBadge}</span>
           <span className="status-pill status-pill--accent">{pinDisplay}</span>
+          <span className={`status-pill ${runtimeState === 'ready' ? 'status-pill--success' : ''}`}>
+            {runtimeBadge}
+          </span>
         </div>
       </div>
 
       {screen === 'menu' ? (
         <MenuScreen
           t={t}
+          sessionBadge={sessionBadge}
+          pinDisplay={pinDisplay}
+          sessionMessage={sessionMessage}
           onStart={() => setScreen('load')}
           onSettings={() => setScreen('settings')}
           onExit={() => void handleExit()}

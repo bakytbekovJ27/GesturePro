@@ -1,6 +1,9 @@
 from django.urls import path
 
 from .views import (
+    AuthLoginView,
+    AuthMeView,
+    AuthRegisterView,
     PresentationDesktopEventView,
     PresentationDownloadView,
     PresentationLatestView,
@@ -13,6 +16,9 @@ from .views import (
 )
 
 urlpatterns = [
+    path("auth/register/", AuthRegisterView.as_view(), name="auth-register"),
+    path("auth/login/", AuthLoginView.as_view(), name="auth-login"),
+    path("auth/me/", AuthMeView.as_view(), name="auth-me"),
     path("session/create/", SessionCreateView.as_view(), name="session-create"),
     path("session/pair/", SessionPairView.as_view(), name="session-pair"),
     path("presentations/upload/", PresentationUploadView.as_view(), name="presentation-upload"),

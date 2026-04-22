@@ -1,5 +1,15 @@
 # Repository Guidelines
 
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+
 ## Project Structure & Module Organization
 `GesturePro` is split by runtime. `backend/` contains the Django API (`api/` for app logic, `server/` for settings and entrypoints). `frontend/` is the React + Vite mobile/PWA client, with feature code under `src/`, shared UI in `src/components/`, API calls in `src/api/`, and helpers in `src/lib/`. `desktop/` is the Tauri-based desktop shell with React screens in `src/screens/` and platform bridge code in `src/bridge/` and `src/lib/`. Legacy Python desktop logic still lives in `core/`, `screens/`, and `main.py`.
 
@@ -32,3 +42,5 @@ Recent commits use short, imperative subjects such as `Reorganize project struct
 
 ## Configuration Tips
 Copy `backend/.env.example` to `backend/.env` before running the server. Frontend expects the backend at `http://127.0.0.1:8000/api/v1` unless overridden in its local environment file.
+
+
