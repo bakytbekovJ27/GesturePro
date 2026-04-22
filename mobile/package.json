@@ -1,0 +1,61 @@
+{
+  "name": "gesturepro-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "type": "module",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "dev": "expo start --web --port 3000 --host localhost",
+    "clean": "rm -rf dist",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
+    "@google/genai": "^1.29.0",
+    "@react-navigation/bottom-tabs": "^7.15.9",
+    "@react-navigation/native": "^7.2.2",
+    "@tailwindcss/vite": "^4.1.14",
+    "@vitejs/plugin-react": "^5.0.4",
+    "axios": "^1.15.2",
+    "dotenv": "^17.2.3",
+    "expo": "^55.0.17",
+    "expo-constants": "^55.0.15",
+    "expo-document-picker": "^55.0.13",
+    "expo-file-system": "^55.0.17",
+    "expo-linking": "^55.0.14",
+    "expo-router": "^55.0.13",
+    "expo-secure-store": "^55.0.13",
+    "express": "^4.21.2",
+    "lucide-react": "^0.546.0",
+    "lucide-react-native": "^1.8.0",
+    "motion": "^12.23.24",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "react-native-paper": "^5.12.3",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-toast-message": "^2.3.3",
+    "react-native-vector-icons": "^10.3.0",
+    "react-native-web": "^0.21.2",
+    "vite": "^6.2.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.14",
+    "@types/react-native": "^0.72.8",
+    "autoprefixer": "^10.4.21",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.9.2",
+    "vite": "^6.2.0"
+  },
+  "overrides": {
+    "use-latest-callback": "0.2.6"
+  }
+}

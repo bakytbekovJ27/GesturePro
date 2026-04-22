@@ -2,22 +2,19 @@
 
 GesturePro объединяет три части:
 
-- desktop-приложение на Python/OpenCV для управления презентацией жестами;
-- Django API для pairing по PIN-коду, загрузки файлов и выдачи PDF на desktop;
-- PWA frontend на React/Vite для отправки презентаций с телефона.
+- Django API для pairing по PIN-коду, загрузки файлов и выдачи PDF;
+- Tauri desktop shell на React/Vite для десктопного клиента;
+- Expo/React Native мобильное приложение для отправки презентаций с телефона.
 
 ## Структура
 
 ```text
 GesturePro/
-├── main.py              # desktop entrypoint
+├── backend/             # Django API, server config, env, requirements
+├── desktop/             # Tauri desktop GUI shell
+├── mobile/              # Expo/React Native мобильное приложение
 ├── core/                # жесты, рендеринг, загрузка слайдов
-├── screens/             # экраны desktop-приложения
-├── api/                 # Django REST API
-├── server/              # Django settings/urls/asgi/wsgi
-├── frontend/            # React + Vite PWA
-├── requirements.txt     # Python dependencies
-└── .env.example         # backend env template
+└── README.md
 ```
 
 ## Что умеет проект
@@ -30,37 +27,37 @@ GesturePro/
 
 ## Быстрый старт
 
-### 1. Python desktop + backend
+### 1. Запуск backend
 
 ```bash
+cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python manage.py migrate
-python manage.py runserver
+python manage.py runserver 0.0.0.0:8000
 ```
 
-Desktop-приложение запускается отдельно:
+### 2. Запуск desktop
 
 ```bash
-python main.py
-```
-
-### 2. Frontend
-
-```bash
-cd frontend
-cp .env.example .env
+cd desktop
 npm install
-npm run dev
+npm run tauri dev
 ```
 
-По умолчанию frontend использует backend `http://127.0.0.1:8000/api/v1`.
+### 3. Запуск мобильного клиента
+
+```bash
+cd mobile
+npm install
+npm run start
+```
 
 ## Переменные окружения backend
 
-Основные переменные описаны в `.env.example`:
+Основные переменные описаны в `backend/.env.example`:
 
 - `DJANGO_SECRET_KEY`
 - `DJANGO_DEBUG`
@@ -72,6 +69,16 @@ npm run dev
 - `SESSION_LIFETIME_HOURS`
 - `CELERY_BROKER_URL`
 - `CELERY_RESULT_BACKEND`
+
+## Backend layout
+
+Теперь вся серверная часть собрана в `backend/`:
+
+- `backend/manage.py` — Django entrypoint;
+- `backend/api/` — REST API, модели, сериализаторы, бизнес-логика;
+- `backend/server/` — settings, urls, asgi, wsgi, celery;
+- `backend/requirements.txt` — Python-зависимости backend;
+- `backend/.env.example` — шаблон переменных окружения backend.
 
 ## Системные зависимости
 

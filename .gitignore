@@ -5,7 +5,6 @@
 .env
 .env.*
 !.env.example
-!frontend/.env.example
 
 .venv/
 venv/
@@ -28,11 +27,15 @@ temp/
 logs/
 *.log
 
-frontend/node_modules/
-frontend/dist/
-frontend/dist-ssr/
-frontend/.vite/
-frontend/.env
-frontend/.env.*
+mobile/node_modules/
+mobile/.expo/
+mobile/.expo-shared/
 
-Example.pdf
+desktop/node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/.env
+desktop/.env.*
+
+node_modules
+.codex/
