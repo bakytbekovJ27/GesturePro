@@ -30,7 +30,27 @@ from typing import Any
 import cv2
 import requests
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+def _find_project_root() -> Path:
+    """Find the directory containing the 'core' package.
+
+    Path layouts:
+    - Dev mode:   runtime.py at <repo>/desktop/sidecar/runtime.py
+                  core/ at <repo>/core/  → 2 levels up from __file__
+    - Bundle:     runtime.py at .app/Contents/Resources/_up_/sidecar/runtime.py
+                  core/ at .app/Contents/Resources/_up_/_up_/core/
+                  → sidecar/../ = _up_/, _up_/../ = Resources/  ← not right
+                  → actually: script_dir.parent = _up_/, .parent = Resources/_up_/
+                  Let's just search 1..3 ancestor levels for 'core/'.
+    """
+    script_dir = Path(__file__).resolve().parent
+    for ancestor in [script_dir.parent, script_dir.parent.parent, script_dir.parent.parent.parent]:
+        if (ancestor / "core").is_dir():
+            return ancestor
+    # Last-resort fallback
+    return Path(__file__).resolve().parents[2]
+
+
+PROJECT_ROOT = _find_project_root()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -101,6 +121,7 @@ class SidecarRuntime:
         self._lock = threading.Lock()
 
         self._session_pin: str | None = None
+        self._session_access_token: str | None = None
         self._session_display = "••• •••"
         self._current_remote_presentation_id: str | None = None
         self._last_remote_sync_key: str | None = None
@@ -140,6 +161,10 @@ class SidecarRuntime:
                     self.start_session()
                 elif command == "session.stop":
                     self.stop_session()
+                elif command == "session.renew":
+                    self.renew_session()
+                elif command == "session.close":
+                    self.close_session()
                 elif command == "presentation.open_file":
                     self.open_presentation_file(str(args.get("path", "")).strip())
                 elif command == "presentation.load_demo":
@@ -181,6 +206,7 @@ class SidecarRuntime:
 
         with self._lock:
             self._session_pin = None
+            self._session_access_token = None
             self._session_display = "••• •••"
             self._current_remote_presentation_id = None
             self._last_remote_sync_key = None
@@ -193,6 +219,92 @@ class SidecarRuntime:
             pin_code=None,
             display_name="••• •••",
         )
+
+    def renew_session(self) -> None:
+        """Close the current session and immediately start a new one with a fresh PIN."""
+        client = requests.Session()
+        try:
+            old_token = None
+            with self._lock:
+                if self._session_pin:
+                    # Retrieve the access_token for the current session to close it
+                    old_token = getattr(self, "_session_access_token", None)
+
+            if old_token:
+                try:
+                    client.delete(
+                        f"{BACKEND_API_URL}/session/close/",
+                        headers={"X-Session-Token": str(old_token)},
+                        timeout=SYNC_REQUEST_TIMEOUT,
+                    )
+                except requests.RequestException:
+                    pass  # Best-effort close
+
+            # Stop current sync loop
+            self._sync_stop_evt.set()
+            if self._sync_thread and self._sync_thread.is_alive():
+                self._sync_thread.join(timeout=0.5)
+
+            with self._lock:
+                self._session_pin = None
+                self._session_display = "••• •••"
+                self._current_remote_presentation_id = None
+                self._last_remote_sync_key = None
+                self._remote_waiting_announced = False
+                self._session_failure_announced = False
+                self._session_access_token = None
+
+            # Create a fresh session directly
+            response = client.post(
+                f"{BACKEND_API_URL}/session/renew/",
+                timeout=SYNC_REQUEST_TIMEOUT,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            pin_code = str(payload.get("pin_code", "")).strip()
+            access_token = str(payload.get("access_token", "")).strip()
+
+            with self._lock:
+                self._session_pin = pin_code
+                self._session_access_token = access_token
+                self._session_display = self._format_pin(pin_code)
+
+            self.emit_session_status(
+                status=SESSION_READY,
+                message=f"New PIN created. Enter {self._format_pin(pin_code)} in the mobile app.",
+                pin_code=pin_code,
+                display_name=self._format_pin(pin_code),
+            )
+            self.emit_runtime_status("ready", "Session renewed successfully.")
+
+            # Re-start the sync loop for the new session
+            self._sync_stop_evt.clear()
+            self._sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
+            self._sync_thread.start()
+        except requests.RequestException as exc:
+            self.emit_runtime_status("error", f"Failed to renew session: {exc}")
+        finally:
+            client.close()
+
+    def close_session(self) -> None:
+        """Explicitly deactivate the current session on the backend and stop polling."""
+        client = requests.Session()
+        try:
+            with self._lock:
+                access_token = getattr(self, "_session_access_token", None)
+            if access_token:
+                try:
+                    client.delete(
+                        f"{BACKEND_API_URL}/session/close/",
+                        headers={"X-Session-Token": str(access_token)},
+                        timeout=SYNC_REQUEST_TIMEOUT,
+                    )
+                except requests.RequestException:
+                    pass  # Best-effort
+        finally:
+            client.close()
+
+        self.stop_session()
 
     def open_presentation_file(self, file_path: str) -> None:
         if not file_path:
@@ -333,11 +445,13 @@ class SidecarRuntime:
         response.raise_for_status()
         payload = response.json()
         pin_code = str(payload.get("pin_code", "")).strip()
+        access_token = str(payload.get("access_token", "")).strip()
         if not pin_code:
             raise requests.RequestException("Backend did not return a PIN code.")
 
         with self._lock:
             self._session_pin = pin_code
+            self._session_access_token = access_token
             self._session_display = self._format_pin(pin_code)
             self._current_remote_presentation_id = None
             self._last_remote_sync_key = None
@@ -409,6 +523,15 @@ class SidecarRuntime:
             return
 
         title = str(payload.get("title") or "presentation.pdf")
+        status = payload.get("status")
+
+        if status == "error":
+            error_message = payload.get("error_message") or "An error occurred with this presentation on the server."
+            self._current_remote_presentation_id = presentation_id
+            self._last_remote_sync_key = sync_key
+            self.emit_presentation_error(error_message, file_name=title, source="remote")
+            return
+
         download_url = payload.get("download_url") or f"{BACKEND_API_URL}/presentations/{presentation_id}/download/"
         local_pdf = REMOTE_TEMP_ROOT / f"{presentation_id}.pdf"
 

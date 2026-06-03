@@ -240,7 +240,13 @@ function App() {
       if (disposed) {
         return
       }
-      const message = error instanceof Error ? error.message : 'Desktop bridge failed to start.'
+      const message = error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+        ? error
+        : error
+        ? String(error)
+        : 'Desktop bridge failed to start.'
       setPinDisplay('••• •••')
       setSessionState('failed')
       setSessionMessage(message)

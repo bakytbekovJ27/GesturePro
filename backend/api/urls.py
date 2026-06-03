@@ -1,5 +1,7 @@
 from django.urls import path
 
+from rest_framework_simplejwt.views import TokenRefreshView
+
 from .views import (
     AuthLoginView,
     AuthMeView,
@@ -12,15 +14,22 @@ from .views import (
     PresentationStatusView,
     PresentationUploadView,
     SessionCreateView,
+    SessionDeactivateView,
+    SessionDetailView,
     SessionPairView,
+    SessionRenewView,
 )
 
 urlpatterns = [
     path("auth/register/", AuthRegisterView.as_view(), name="auth-register"),
     path("auth/login/", AuthLoginView.as_view(), name="auth-login"),
+    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("auth/me/", AuthMeView.as_view(), name="auth-me"),
     path("session/create/", SessionCreateView.as_view(), name="session-create"),
     path("session/pair/", SessionPairView.as_view(), name="session-pair"),
+    path("session/me/", SessionDetailView.as_view(), name="session-detail"),
+    path("session/renew/", SessionRenewView.as_view(), name="session-renew"),
+    path("session/close/", SessionDeactivateView.as_view(), name="session-close"),
     path("presentations/upload/", PresentationUploadView.as_view(), name="presentation-upload"),
     path("presentations/recent/", PresentationRecentView.as_view(), name="presentation-recent"),
     path(

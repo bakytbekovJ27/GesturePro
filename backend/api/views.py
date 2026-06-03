@@ -100,8 +100,63 @@ class SessionCreateView(APIView):
 
     def post(self, request):
         session = DeviceSession.objects.create(pin_code=generate_pin_code())
+        print(f"\n[GesturePro Backend] =========================================")
+        print(f"[GesturePro Backend] CREATED ACTIVE PAIRING SESSION PIN: {session.pin_code}")
+        print(f"[GesturePro Backend] =========================================\n")
         serializer = DeviceSessionSerializer(session)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class SessionDetailView(APIView):
+    """Return the current session info using the X-Session-Token header."""
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        session = get_authorized_session(request)
+        if not session:
+            return Response(
+                {"detail": "Сессия не найдена или токен недействителен."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = DeviceSessionSerializer(session)
+        return Response(serializer.data)
+
+
+class SessionRenewView(APIView):
+    """Deactivate the current session and create a fresh one with a new PIN."""
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        old_session = get_authorized_session(request)
+        if old_session:
+            old_session.is_active = False
+            old_session.save(update_fields=["is_active"])
+
+        new_session = DeviceSession.objects.create(pin_code=generate_pin_code())
+        print(f"\n[GesturePro Backend] =========================================")
+        print(f"[GesturePro Backend] RENEWED ACTIVE PAIRING SESSION PIN: {new_session.pin_code}")
+        print(f"[GesturePro Backend] =========================================\n")
+        serializer = DeviceSessionSerializer(new_session)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class SessionDeactivateView(APIView):
+    """Explicitly close (deactivate) the current desktop session."""
+    authentication_classes = []
+    permission_classes = []
+
+    def delete(self, request):
+        session = get_authorized_session(request)
+        if not session:
+            return Response(
+                {"detail": "Активная сессия не найдена."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        session.is_active = False
+        session.save(update_fields=["is_active"])
+        return Response({"detail": "Сессия закрыта."}, status=status.HTTP_200_OK)
 
 
 class SessionPairView(APIView):
@@ -302,7 +357,15 @@ class PresentationLatestView(APIView):
             )
 
         presentation = (
-            session.presentations.filter(status=Presentation.STATUS_READY, pdf_file__isnull=False)
+            session.presentations.filter(
+                status__in=[
+                    Presentation.STATUS_READY,
+                    Presentation.STATUS_DOWNLOADING,
+                    Presentation.STATUS_PRESENTING,
+                    Presentation.STATUS_ERROR,
+                ],
+                pdf_file__isnull=False,
+            )
             .order_by("-last_sent_at", "-uploaded_at")
             .first()
         )

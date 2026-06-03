@@ -10,6 +10,8 @@ const WINDOWS_ABSOLUTE_PATH = /^[a-zA-Z]:[\\/]/
 type SidecarCommand =
   | { command: 'session.start' }
   | { command: 'session.stop' }
+  | { command: 'session.renew' }
+  | { command: 'session.close' }
   | { command: 'presentation.open_file'; args: { path: string } }
   | { command: 'presentation.load_demo' }
   | { command: 'presentation.enter' }
