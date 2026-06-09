@@ -105,6 +105,7 @@ class GestureRuntimeState:
         self.swipe_started_at: float | None = None
         self.last_slide_at = 0.0
         self.last_event: tuple[str, str, bool, str] | None = None
+        self.slide_cooldown = 0.8
 
     def reset_runtime(self) -> None:
         self.fist_started_at = None
@@ -173,6 +174,8 @@ class SidecarRuntime:
                     self.enter_presentation()
                 elif command == "presentation.leave":
                     self.leave_presentation()
+                elif command == "presentation.set_delay":
+                    self.set_delay(float(args.get("delay", 0.8)))
                 elif command == "app.shutdown":
                     self.shutdown()
                     break
@@ -407,6 +410,11 @@ class SidecarRuntime:
         self._gesture_thread = None
         self._gesture_state.reset_runtime()
         self.emit_gesture_state(GESTURE_NONE, "idle", False, "Gesture core paused.")
+
+    def set_delay(self, seconds: float) -> None:
+        clamped = max(0.5, min(2.0, seconds))
+        self._gesture_state.slide_cooldown = clamped
+        self.emit_runtime_status("ready", f"Gesture trigger delay updated to {clamped}s.")
 
     def _sync_loop(self) -> None:
         client = requests.Session()
@@ -715,7 +723,7 @@ class SidecarRuntime:
             else:
                 delta = idx_tip.x - state.swipe_origin_x
                 dt = now - (state.swipe_started_at or now)
-                if dt < SWIPE_MAX_TIME and now - state.last_slide_at > SLIDE_COOLDOWN:
+                if dt < SWIPE_MAX_TIME and now - state.last_slide_at > state.slide_cooldown:
                     if delta > SWIPE_THRESH:
                         state.last_slide_at = now
                         state.swipe_origin_x = idx_tip.x

@@ -16,6 +16,7 @@ type SidecarCommand =
   | { command: 'presentation.load_demo' }
   | { command: 'presentation.enter' }
   | { command: 'presentation.leave' }
+  | { command: 'presentation.set_delay'; args: { delay: number } }
   | { command: 'app.shutdown' }
 
 function normalizeSlides(slides: PresentationSlide[] | undefined): PresentationSlide[] | undefined {
@@ -114,6 +115,14 @@ export class TauriDesktopCoreBridge implements DesktopCoreBridge {
       return
     }
     await this.sendCommand({ command: 'presentation.leave' })
+  }
+
+  async setDelay(seconds: number): Promise<void> {
+    await this.ensureStarted()
+    await this.sendCommand({
+      command: 'presentation.set_delay',
+      args: { delay: seconds },
+    })
   }
 
   async dispose(): Promise<void> {

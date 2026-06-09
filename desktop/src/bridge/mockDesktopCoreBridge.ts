@@ -195,6 +195,11 @@ export class MockDesktopCoreBridge implements MockDesktopCoreBridgeContract {
     })
   }
 
+  async setDelay(seconds: number): Promise<void> {
+    // Mock setting delay is a no-op
+    void seconds
+  }
+
   async refreshSession(): Promise<void> {
     await this.startSession()
   }

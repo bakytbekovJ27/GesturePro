@@ -37,5 +37,10 @@ desktop/src-tauri/target/
 desktop/.env
 desktop/.env.*
 
+admin-panel/node_modules/
+admin-panel/dist/
+admin-panel/.env
+admin-panel/.env.*
+
 node_modules
 .codex/

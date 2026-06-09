@@ -248,6 +248,11 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
     emitGestureIdle((event) => this.emit(event), 'Browser viewer mode is active.')
   }
 
+  async setDelay(seconds: number): Promise<void> {
+    // Browser setting delay is a no-op
+    void seconds
+  }
+
   async dispose(): Promise<void> {
     await this.stopSession()
   }
