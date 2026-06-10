@@ -20,6 +20,7 @@ const gestureFrames: GestureFrame[] = [
   { gesture: 'FIST', mode: 'idle', systemActive: true, message: 'System armed.' },
   { gesture: 'POINT', mode: 'draw', systemActive: true, message: 'Drawing mode.' },
   { gesture: 'THUMB', mode: 'erase', systemActive: true, message: 'Eraser active.' },
+  { gesture: 'PINCH', mode: 'pointer', systemActive: true, message: 'Pointer mode.' },
   { gesture: 'PEACE', mode: 'swipe', systemActive: true, message: 'Swipe gesture detected.' },
   { gesture: 'PALM', mode: 'clear', systemActive: true, message: 'Clear gesture ready.' },
 ] as const
@@ -81,6 +82,8 @@ export class MockDesktopCoreBridge implements MockDesktopCoreBridgeContract {
   private gestureTimer: number | null = null
 
   private cameraTimer: number | null = null
+
+  private cursorTimer: number | null = null
 
   private cameraFrameIndex = 0
 
@@ -173,6 +176,22 @@ export class MockDesktopCoreBridge implements MockDesktopCoreBridgeContract {
         data: this.mockCameraDataUrl(),
       })
     }, 200)
+
+    let angle = 0
+    this.cursorTimer = window.setInterval(() => {
+      const currentFrame = gestureFrames[this.gestureIndex]
+      if (currentFrame.gesture === 'POINT' || currentFrame.gesture === 'PINCH') {
+        const x = 0.5 + 0.22 * Math.cos(angle)
+        const y = 0.35 + 0.18 * Math.sin(angle)
+        angle += 0.08
+        this.emit({
+          type: 'cursor_move',
+          x: parseFloat(x.toFixed(4)),
+          y: parseFloat(y.toFixed(4)),
+          isDrawing: currentFrame.gesture === 'POINT',
+        })
+      }
+    }, 60)
   }
 
   async stopGestureCore(): Promise<void> {
@@ -184,6 +203,11 @@ export class MockDesktopCoreBridge implements MockDesktopCoreBridgeContract {
     if (this.cameraTimer !== null) {
       window.clearInterval(this.cameraTimer)
       this.cameraTimer = null
+    }
+
+    if (this.cursorTimer !== null) {
+      window.clearInterval(this.cursorTimer)
+      this.cursorTimer = null
     }
 
     this.emit({

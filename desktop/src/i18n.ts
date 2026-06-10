@@ -54,6 +54,7 @@ const translations = {
     hud_erase: 'Ластик',
     hud_swipe: 'Листание',
     hud_clear: 'Очистка',
+    hud_pointer: 'Указка',
     hud_idle: 'Ожидание',
     hud_pdf: 'PDF preview',
     hud_hint:
@@ -129,6 +130,7 @@ const translations = {
     hud_erase: 'Erase',
     hud_swipe: 'Swipe',
     hud_clear: 'Clear',
+    hud_pointer: 'Pointer',
     hud_idle: 'Idle',
     hud_pdf: 'PDF preview',
     hud_hint:
@@ -171,6 +173,8 @@ export function gestureModeLabelKey(mode: GestureMode): TranslationKey {
       return 'hud_swipe'
     case 'clear':
       return 'hud_clear'
+    case 'pointer':
+      return 'hud_pointer'
     default:
       return 'hud_idle'
   }

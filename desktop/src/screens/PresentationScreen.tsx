@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { gestureModeLabelKey, type Translator } from '../i18n'
 import type { GestureMode, GestureState, PresentationSlide } from '../types/desktop'
 
@@ -24,7 +24,9 @@ type PresentationScreenProps = {
   currentStroke: DrawStroke
   cursorPos: DrawPoint | null
   drawingEnabled: boolean
+  erasingEnabled: boolean
   onToggleDrawing: () => void
+  onToggleErasing: () => void
   onClearSlideDrawing: () => void
 }
 
@@ -119,7 +121,9 @@ export function PresentationScreen({
   currentStroke,
   cursorPos,
   drawingEnabled,
+  erasingEnabled,
   onToggleDrawing,
+  onToggleErasing,
   onClearSlideDrawing,
 }: PresentationScreenProps) {
   const slide = slides[currentIndex]
@@ -129,6 +133,59 @@ export function PresentationScreen({
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const [hoveredButton, setHoveredButton] = useState<string | null>(null)
+  const lastGestureRef = useRef<GestureState>('NONE')
+
+  // Calculate hover status for simulated gesture cursor
+  useEffect(() => {
+    if (!cursorPos || !containerRef.current) {
+      setHoveredButton(null)
+      return
+    }
+
+    const containerRect = containerRef.current.getBoundingClientRect()
+    const clientX = containerRect.left + cursorPos.x * containerRect.width
+    const clientY = containerRect.top + cursorPos.y * containerRect.height
+
+    const buttons = [
+      { id: 'btn-toggle-draw', selector: '#btn-toggle-draw' },
+      { id: 'btn-toggle-erase', selector: '#btn-toggle-erase' },
+      { id: 'btn-clear-board', selector: '#btn-clear-board' },
+    ]
+
+    let foundHovered = null
+    for (const btn of buttons) {
+      const el = document.querySelector(btn.selector)
+      if (el) {
+        const rect = el.getBoundingClientRect()
+        if (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
+        ) {
+          foundHovered = btn.id
+          break
+        }
+      }
+    }
+    setHoveredButton(foundHovered)
+  }, [cursorPos])
+
+  // Click simulation on PINCH transition
+  useEffect(() => {
+    if (activeGesture === 'PINCH' && lastGestureRef.current !== 'PINCH') {
+      if (hoveredButton === 'btn-toggle-draw') {
+        onToggleDrawing()
+      } else if (hoveredButton === 'btn-toggle-erase') {
+        onToggleErasing()
+      } else if (hoveredButton === 'btn-clear-board') {
+        onClearSlideDrawing()
+      }
+    }
+    lastGestureRef.current = activeGesture
+  }, [activeGesture, hoveredButton, onToggleDrawing, onToggleErasing, onClearSlideDrawing])
 
   // Keep canvas resolution in sync with its display size
   useEffect(() => {
@@ -203,6 +260,34 @@ export function PresentationScreen({
           aria-hidden="true"
         />
 
+        {/* Floating top bar controls */}
+        <div className="whiteboard-topbar">
+          <button
+            id="btn-toggle-draw"
+            className={`whiteboard-btn ${drawingEnabled ? 'whiteboard-btn--active' : ''} ${hoveredButton === 'btn-toggle-draw' ? 'whiteboard-btn--hovered' : ''}`}
+            onClick={onToggleDrawing}
+            title={t('hud_draw')}
+          >
+            ✏️ {t('hud_draw')}
+          </button>
+          <button
+            id="btn-toggle-erase"
+            className={`whiteboard-btn ${erasingEnabled ? 'whiteboard-btn--active' : ''} ${hoveredButton === 'btn-toggle-erase' ? 'whiteboard-btn--hovered' : ''}`}
+            onClick={onToggleErasing}
+            title={t('hud_erase')}
+          >
+            🧹 {t('hud_erase')}
+          </button>
+          <button
+            id="btn-clear-board"
+            className={`whiteboard-btn whiteboard-btn--clear ${hoveredButton === 'btn-clear-board' ? 'whiteboard-btn--hovered' : ''}`}
+            onClick={onClearSlideDrawing}
+            title={t('hud_clear')}
+          >
+            ❌ {t('hud_clear')}
+          </button>
+        </div>
+
         <div className="stage-overlay stage-overlay--left">
           <span className={`status-pill ${systemActive ? 'status-pill--success' : ''}`}>
             {systemActive ? t('hud_active') : t('hud_paused')}
@@ -211,13 +296,19 @@ export function PresentationScreen({
           {drawingEnabled && (
             <span className="status-pill status-pill--draw-active">✏️ Draw Mode On</span>
           )}
+          {erasingEnabled && (
+            <span className="status-pill status-pill--danger">🧹 Erase Mode On</span>
+          )}
           {isDrawing && (
             <span className="status-pill status-pill--accent">✏️ Drawing</span>
+          )}
+          {gestureMode === 'erase' && (
+            <span className="status-pill status-pill--danger">🧹 Erasing</span>
           )}
           {isClearing && (
             <span className="status-pill status-pill--danger">🧹 Clearing</span>
           )}
-          {!drawingEnabled && hasAnnotations && (
+          {!drawingEnabled && !erasingEnabled && hasAnnotations && (
             <span className="status-pill status-pill--annotations">📌 Annotations</span>
           )}
         </div>
@@ -243,36 +334,46 @@ export function PresentationScreen({
       </div>
 
       <div className="presentation-toolbar">
-        <button className="toolbar-button" onClick={onPrev} disabled={!hasSlides}>
-          {t('presentation_prev')}
-        </button>
-        <button className="toolbar-button" onClick={onNext} disabled={!hasSlides}>
-          {t('presentation_next')}
-        </button>
-
-        <div className="toolbar-divider" aria-hidden="true" />
-
-        <button
-          id="draw-mode-toggle"
-          className={`toolbar-button toolbar-button--draw${drawingEnabled ? ' toolbar-button--draw-active' : ''}`}
-          onClick={onToggleDrawing}
-          aria-pressed={drawingEnabled}
-          title="Toggle drawing mode (P)"
-        >
-          {drawingEnabled ? '✏️ Drawing On' : '✏️ Draw Mode'}
-        </button>
-
-        {hasAnnotations && (
-          <button
-            id="clear-slide-drawing"
-            className="toolbar-button toolbar-button--clear-draw"
-            onClick={onClearSlideDrawing}
-            title="Clear all drawings on this slide"
-          >
-            🧹 Clear Slide
+          <button className="toolbar-button" onClick={onPrev} disabled={!hasSlides}>
+            {t('presentation_prev')}
           </button>
-        )}
-      </div>
+          <button className="toolbar-button" onClick={onNext} disabled={!hasSlides}>
+            {t('presentation_next')}
+          </button>
+
+          <div className="toolbar-divider" aria-hidden="true" />
+
+          <button
+            id="draw-mode-toggle"
+            className={`toolbar-button toolbar-button--draw${drawingEnabled ? ' toolbar-button--draw-active' : ''}`}
+            onClick={onToggleDrawing}
+            aria-pressed={drawingEnabled}
+            title="Toggle drawing mode (P)"
+          >
+            {drawingEnabled ? '✏️ Drawing On' : '✏️ Draw Mode'}
+          </button>
+
+          <button
+            id="erase-mode-toggle"
+            className={`toolbar-button toolbar-button--erase${erasingEnabled ? ' toolbar-button--erase-active' : ''}`}
+            onClick={onToggleErasing}
+            aria-pressed={erasingEnabled}
+            title="Toggle erasing mode (E)"
+          >
+            {erasingEnabled ? '🧹 Erasing On' : '🧹 Erase Mode'}
+          </button>
+
+          {hasAnnotations && (
+            <button
+              id="clear-slide-drawing"
+              className="toolbar-button toolbar-button--clear-draw"
+              onClick={onClearSlideDrawing}
+              title="Clear all drawings on this slide"
+            >
+              ❌ Clear Slide
+            </button>
+          )}
+        </div>
 
       <div className="presentation-hud">
         <div className="hud-item">

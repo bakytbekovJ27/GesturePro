@@ -62,6 +62,9 @@ function App() {
   const [drawingEnabled, setDrawingEnabled] = useState(() => {
     return window.localStorage.getItem('gesturepro.desktop.drawing') === 'true'
   })
+  const [erasingEnabled, setErasingEnabled] = useState(() => {
+    return window.localStorage.getItem('gesturepro.desktop.erasing') === 'true'
+  })
   const t = createTranslator(language)
   const sessionBadge =
     sessionState === 'ready'
@@ -174,7 +177,7 @@ function App() {
           })
           setCurrentStroke([])
         }
-        if (!event.systemActive) {
+        if (!event.systemActive || event.gesture === 'NONE') {
           setCursorPos(null)
         }
         return
@@ -209,11 +212,28 @@ function App() {
         setCameraFrame(event.data)
         return
       case 'cursor_move': {
-        if (!drawingEnabled) return
         const pt = { x: event.x, y: event.y }
         setCursorPos(pt)
-        // Append the point to the current in-progress stroke
-        setCurrentStroke((prev) => [...prev, pt])
+        if (event.isDrawing && drawingEnabled) {
+          // Append the point to the current in-progress stroke
+          setCurrentStroke((prev) => [...prev, pt])
+        } else if (event.isDrawing && erasingEnabled) {
+          // Erase strokes close to the cursor
+          const eraseRadius = 0.04
+          setSlideStrokes((prev) => {
+            const next = new Map(prev)
+            const existing = next.get(currentSlideIndex) ?? []
+            const filtered = existing.filter((stroke) => {
+              return !stroke.some((sPt) => {
+                const dx = sPt.x - pt.x
+                const dy = sPt.y - pt.y
+                return Math.sqrt(dx * dx + dy * dy) < eraseRadius
+              })
+            })
+            next.set(currentSlideIndex, filtered)
+            return next
+          })
+        }
         return
       }
       case 'draw_command':
@@ -236,6 +256,58 @@ function App() {
         return
     }
   })
+
+  const handleToggleDrawing = () => {
+    setDrawingEnabled((prev) => {
+      const next = !prev
+      if (next) {
+        setErasingEnabled(false)
+      } else {
+        if (currentStroke.length > 1) {
+          setSlideStrokes((prevStrokes) => {
+            const nextStrokes = new Map(prevStrokes)
+            const existing = nextStrokes.get(currentSlideIndex) ?? []
+            nextStrokes.set(currentSlideIndex, [...existing, currentStroke])
+            return nextStrokes
+          })
+        }
+        setCurrentStroke([])
+        setCursorPos(null)
+      }
+      return next
+    })
+  }
+
+  const handleToggleErasing = () => {
+    setErasingEnabled((prev) => {
+      const next = !prev
+      if (next) {
+        setDrawingEnabled(false)
+        if (currentStroke.length > 1) {
+          setSlideStrokes((prevStrokes) => {
+            const nextStrokes = new Map(prevStrokes)
+            const existing = nextStrokes.get(currentSlideIndex) ?? []
+            nextStrokes.set(currentSlideIndex, [...existing, currentStroke])
+            return nextStrokes
+          })
+        }
+        setCurrentStroke([])
+      } else {
+        setCursorPos(null)
+      }
+      return next
+    })
+  }
+
+  const handleClearSlideDrawing = () => {
+    setSlideStrokes((prevStrokes) => {
+      const nextStrokes = new Map(prevStrokes)
+      nextStrokes.delete(currentSlideIndex)
+      return nextStrokes
+    })
+    setCurrentStroke([])
+    setCursorPos(null)
+  }
 
   const handleKeyboard = useEffectEvent((event: KeyboardEvent) => {
     const key = event.key.toLowerCase()
@@ -283,7 +355,11 @@ function App() {
       } else if (key === 'o') {
         setScreen('load')
       } else if (key === 'p') {
-        setDrawingEnabled((prev) => !prev)
+        handleToggleDrawing()
+      } else if (key === 'e') {
+        handleToggleErasing()
+      } else if (key === 'x') {
+        handleClearSlideDrawing()
       } else if (key === 'q') {
         void closeDesktopWindow()
       }
@@ -339,6 +415,10 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('gesturepro.desktop.drawing', String(drawingEnabled))
   }, [drawingEnabled])
+
+  useEffect(() => {
+    window.localStorage.setItem('gesturepro.desktop.erasing', String(erasingEnabled))
+  }, [erasingEnabled])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyboard)
@@ -423,33 +503,12 @@ function App() {
           cameraFrame={cameraFrame}
           strokes={slideStrokes.get(currentSlideIndex) ?? []}
           currentStroke={drawingEnabled ? currentStroke : []}
-          cursorPos={drawingEnabled ? cursorPos : null}
+          cursorPos={drawingEnabled || erasingEnabled || activeGesture === 'PINCH' ? cursorPos : null}
           drawingEnabled={drawingEnabled}
-          onToggleDrawing={() => {
-            setDrawingEnabled((prev) => !prev)
-            if (drawingEnabled) {
-              // Commit any in-progress stroke when turning off
-              if (currentStroke.length > 1) {
-                setSlideStrokes((prev) => {
-                  const next = new Map(prev)
-                  const existing = next.get(currentSlideIndex) ?? []
-                  next.set(currentSlideIndex, [...existing, currentStroke])
-                  return next
-                })
-              }
-              setCurrentStroke([])
-              setCursorPos(null)
-            }
-          }}
-          onClearSlideDrawing={() => {
-            setSlideStrokes((prev) => {
-              const next = new Map(prev)
-              next.delete(currentSlideIndex)
-              return next
-            })
-            setCurrentStroke([])
-            setCursorPos(null)
-          }}
+          erasingEnabled={erasingEnabled}
+          onToggleDrawing={handleToggleDrawing}
+          onToggleErasing={handleToggleErasing}
+          onClearSlideDrawing={handleClearSlideDrawing}
         />
       ) : null}
 

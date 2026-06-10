@@ -79,6 +79,7 @@ GESTURE_POINT = "POINT"
 GESTURE_THUMB = "THUMB"
 GESTURE_PALM = "PALM"
 GESTURE_PEACE = "PEACE"
+GESTURE_PINCH = "PINCH"
 SESSION_CREATING = "creating"
 SESSION_READY = "ready"
 SESSION_FAILED = "failed"
@@ -746,10 +747,26 @@ class SidecarRuntime:
         state.swipe_origin_x = None
         state.swipe_started_at = None
 
+        if gesture == GESTURE_PINCH:
+            self.emit_gesture_state(GESTURE_PINCH, "pointer", True, "Pointer gesture detected.")
+            idx_tip = landmarks.landmark[detector._mp_hands.HandLandmark.INDEX_FINGER_TIP]
+            self.emit({
+                "type": "cursor_move",
+                "x": round(idx_tip.x, 4),
+                "y": round(idx_tip.y, 4),
+                "isDrawing": False,
+            })
+            return
+
         if gesture == GESTURE_POINT:
             self.emit_gesture_state(GESTURE_POINT, "draw", True, "Draw mode gesture detected.")
             idx_tip = landmarks.landmark[detector._mp_hands.HandLandmark.INDEX_FINGER_TIP]
-            self.emit({"type": "cursor_move", "x": round(idx_tip.x, 4), "y": round(idx_tip.y, 4)})
+            self.emit({
+                "type": "cursor_move",
+                "x": round(idx_tip.x, 4),
+                "y": round(idx_tip.y, 4),
+                "isDrawing": True,
+            })
             return
         if gesture == GESTURE_THUMB:
             self.emit_gesture_state(GESTURE_THUMB, "erase", True, "Eraser gesture detected.")

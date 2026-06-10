@@ -8,7 +8,7 @@ export type LoadState = 'idle' | 'loading' | 'ready' | 'error'
 
 export type PresentationSource = 'demo' | 'file' | 'remote'
 
-export type GestureMode = 'idle' | 'draw' | 'erase' | 'swipe' | 'clear'
+export type GestureMode = 'idle' | 'draw' | 'erase' | 'swipe' | 'clear' | 'pointer'
 
 export type RuntimeState = 'starting' | 'ready' | 'degraded' | 'stopped' | 'error'
 
@@ -76,6 +76,7 @@ export type CursorMoveEvent = {
   x: number
   /** Normalized hand Y position [0..1] from MediaPipe */
   y: number
+  isDrawing?: boolean
 }
 
 export type DrawCommandEvent = {
