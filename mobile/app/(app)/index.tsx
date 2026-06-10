@@ -36,7 +36,7 @@ export default function Dashboard() {
   const pulseAnim = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | undefined;
+    let interval: any;
 
     if (isConnected && sessionToken) {
       interval = setInterval(() => {

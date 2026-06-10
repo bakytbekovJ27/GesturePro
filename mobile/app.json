@@ -2,29 +2,21 @@
   "expo": {
     "name": "GesturePro Mobile",
     "slug": "gesturepro-mobile",
+    "scheme": "gesturepro",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "newArchEnabled": true,
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F0F1A"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.gesturepro-mobile"
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F0F1A"
-      }
-    },
+    "android": {},
     "web": {
-      "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [

@@ -178,13 +178,72 @@ fn stop_sidecar_inner(app: &AppHandle, manager: &Arc<SidecarManager>) -> Result<
   Ok(())
 }
 
+fn resolve_sidecar_paths() -> Result<(PathBuf, PathBuf), String> {
+  // In a bundled macOS .app the layout (Tauri converts ../ to _up_/) is:
+  //   Contents/MacOS/gesturepro_desktop          <- current_exe()
+  //   Contents/Resources/_up_/sidecar/runtime    <- sidecar script
+  //   Contents/Resources/_up_/_up_/core/         <- Python core module
+  //
+  // In dev mode the exe is at:
+  //   desktop/src-tauri/target/debug/gesturepro_desktop
+  // and the sidecar lives at:
+  //   desktop/sidecar/runtime
+  let exe = std::env::current_exe().map_err(|e| format!("cannot resolve current_exe: {e}"))?;
+
+  // Bundled path: Contents/MacOS -> Contents/Resources/_up_/sidecar
+  let bundle_sidecar = exe
+    .parent() // MacOS/
+    .and_then(|p| p.parent()) // Contents/
+    .map(|p| p.join("Resources/_up_/sidecar"));
+
+  if let Some(ref sidecar_dir) = bundle_sidecar {
+    let script = sidecar_dir.join("runtime");
+    if script.exists() {
+      // Working dir = directory containing both sidecar/ and core/ (_up_/)
+      let working_dir = sidecar_dir
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| sidecar_dir.clone());
+      return Ok((script, working_dir));
+    }
+  }
+
+  // Dev/source path fallback: navigate from the binary up to the repo root.
+  // target/debug/ -> target/ -> src-tauri/ -> desktop/ -> GesturePro/ (repo root)
+  let dev_sidecar = exe
+    .parent() // debug/ or release/
+    .and_then(|p| p.parent()) // target/
+    .and_then(|p| p.parent()) // src-tauri/
+    .and_then(|p| p.parent()) // desktop/
+    .and_then(|p| p.parent()) // repo root
+    .map(|p| p.join("desktop/sidecar"));
+
+  if let Some(ref sidecar_dir) = dev_sidecar {
+    let script = sidecar_dir.join("runtime");
+    if script.exists() {
+      // Repo root as working directory.
+      let repo_root = sidecar_dir
+        .parent()
+        .and_then(|p| p.parent())
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| sidecar_dir.clone());
+      return Ok((script, repo_root));
+    }
+  }
+
+  Err(format!(
+    "Python sidecar not found. Tried:\n  {:?}\n  {:?}",
+    bundle_sidecar,
+    dev_sidecar
+  ))
+}
+
 fn spawn_sidecar_process() -> Result<(Child, ChildStdin, ChildStdout, ChildStderr), String> {
-  let script_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../sidecar/runtime");
-  let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+  let (script_path, working_dir) = resolve_sidecar_paths()?;
 
   let mut command = Command::new(&script_path);
   command
-    .current_dir(&repo_root)
+    .current_dir(&working_dir)
     .env("PYTHONUNBUFFERED", "1")
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
@@ -206,7 +265,7 @@ fn spawn_sidecar_process() -> Result<(Child, ChildStdin, ChildStdout, ChildStder
         .ok_or_else(|| "failed to capture sidecar stderr".to_string())?;
       Ok((child, stdin, stdout, stderr))
     }
-    Err(err) => Err(format!("Unable to start Python sidecar wrapper: {err}")),
+    Err(err) => Err(format!("Unable to start Python sidecar at {:?}: {err}", script_path)),
   }
 }
 

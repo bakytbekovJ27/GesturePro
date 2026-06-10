@@ -1,3 +1,19 @@
 #!/bin/bash
-cd "$(dirname "$0")/../.."
-python3 desktop/sidecar/runtime.py "$@"
+# Resolve the directory containing this script (works from any working dir)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Try to find a virtual environment python
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+VENV_PYTHON=""
+
+if [ -f "$REPO_ROOT/backend/.venv/bin/python" ]; then
+  VENV_PYTHON="$REPO_ROOT/backend/.venv/bin/python"
+elif [ -f "$REPO_ROOT/.venv/bin/python" ]; then
+  VENV_PYTHON="$REPO_ROOT/.venv/bin/python"
+fi
+
+if [ -n "$VENV_PYTHON" ]; then
+  exec "$VENV_PYTHON" "$SCRIPT_DIR/runtime.py" "$@"
+else
+  exec python3 "$SCRIPT_DIR/runtime.py" "$@"
+fi

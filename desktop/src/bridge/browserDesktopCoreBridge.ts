@@ -16,6 +16,8 @@ type RemotePresentationResponse = {
   title?: string
   download_url?: string | null
   last_sent_at?: string | null
+  status?: string
+  error_message?: string | null
 }
 
 const POLL_INTERVAL_MS = 2_500
@@ -246,6 +248,11 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
     emitGestureIdle((event) => this.emit(event), 'Browser viewer mode is active.')
   }
 
+  async setDelay(seconds: number): Promise<void> {
+    // Browser setting delay is a no-op
+    void seconds
+  }
+
   async dispose(): Promise<void> {
     await this.stopSession()
   }
@@ -391,6 +398,15 @@ export class BrowserDesktopCoreBridge implements DesktopCoreBridge {
     }
 
     const fileName = String(payload.title || 'presentation.pdf')
+
+    if (payload.status === 'error') {
+      const message = payload.error_message || 'An error occurred with this presentation on the server.'
+      this.currentRemotePresentationId = presentationId
+      this.lastRemoteSyncKey = syncKey
+      this.emitPresentationError(message, fileName, 'remote')
+      return
+    }
+
     this.emit({
       type: 'presentation_status',
       status: 'loading',

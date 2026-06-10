@@ -70,6 +70,19 @@ export type CameraFrameEvent = {
   data: string
 }
 
+export type CursorMoveEvent = {
+  type: 'cursor_move'
+  /** Normalized hand X position [0..1] from MediaPipe (already mirrored by sidecar) */
+  x: number
+  /** Normalized hand Y position [0..1] from MediaPipe */
+  y: number
+}
+
+export type DrawCommandEvent = {
+  type: 'draw_command'
+  action: 'undo' | 'clear'
+}
+
 export type CoreEvent =
   | SessionStatusEvent
   | GestureStateEvent
@@ -78,3 +91,5 @@ export type CoreEvent =
   | RuntimeStatusEvent
   | PresentationCommandEvent
   | CameraFrameEvent
+  | CursorMoveEvent
+  | DrawCommandEvent

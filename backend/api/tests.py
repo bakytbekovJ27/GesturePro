@@ -271,3 +271,52 @@ class MobileApiTests(APITestCase):
         )
         self.assertEqual(latest_response.status_code, status.HTTP_200_OK)
         self.assertEqual(latest_response.data["id"], first_id)
+
+    def test_latest_presentation_returns_downloading_presenting_error_statuses(self):
+        registered = self.register_user()
+        presentation_response = self.upload_pdf(
+            registered["tokens"]["access"],
+            str(self.session.access_token),
+            "deck.pdf",
+        )
+        presentation_id = presentation_response.data["id"]
+        presentation = Presentation.objects.get(id=presentation_id)
+
+        # 1. Test ready status
+        latest_response = self.client.get(
+            reverse("presentation-latest"),
+            {"pin": self.session.pin_code},
+        )
+        self.assertEqual(latest_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(latest_response.data["status"], "ready")
+
+        # 2. Test downloading status
+        presentation.status = Presentation.STATUS_DOWNLOADING
+        presentation.save()
+        latest_response = self.client.get(
+            reverse("presentation-latest"),
+            {"pin": self.session.pin_code},
+        )
+        self.assertEqual(latest_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(latest_response.data["status"], "downloading")
+
+        # 3. Test presenting status
+        presentation.status = Presentation.STATUS_PRESENTING
+        presentation.save()
+        latest_response = self.client.get(
+            reverse("presentation-latest"),
+            {"pin": self.session.pin_code},
+        )
+        self.assertEqual(latest_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(latest_response.data["status"], "presenting")
+
+        # 4. Test error status
+        presentation.status = Presentation.STATUS_ERROR
+        presentation.save()
+        latest_response = self.client.get(
+            reverse("presentation-latest"),
+            {"pin": self.session.pin_code},
+        )
+        self.assertEqual(latest_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(latest_response.data["status"], "error")
+

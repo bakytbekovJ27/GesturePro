@@ -22,12 +22,20 @@ import type {
   SessionState,
 } from './types/desktop'
 
+// A stroke is a list of {x, y} normalised points [0..1]
+type DrawPoint = { x: number; y: number }
+type DrawStroke = DrawPoint[]
+
 function App() {
   const [bridge] = useState(() => createDesktopCoreBridge())
   const [screen, setScreen] = useState<DesktopScreen>('menu')
   const [language, setLanguage] = useState<LanguageCode>(() => {
     const saved = window.localStorage.getItem('gesturepro.desktop.lang')
     return saved === 'en' ? 'en' : 'ru'
+  })
+  const [delayTime, setDelayTime] = useState<number>(() => {
+    const saved = window.localStorage.getItem('gesturepro.desktop.delay')
+    return saved ? parseFloat(saved) : 0.8
   })
   const [pinDisplay, setPinDisplay] = useState('••• •••')
   const [sessionMessage, setSessionMessage] = useState('Booting desktop shell...')
@@ -46,6 +54,14 @@ function App() {
   const [cameraFrame, setCameraFrame] = useState<string | null>(null)
   const [runtimeState, setRuntimeState] = useState<RuntimeState>('starting')
   const [runtimeMessage, setRuntimeMessage] = useState('Desktop bridge is starting...')
+  // Drawing state – per-slide stroke map + current in-progress stroke
+  // Key: slide index, Value: list of completed strokes for that slide
+  const [slideStrokes, setSlideStrokes] = useState<Map<number, DrawStroke[]>>(() => new Map())
+  const [currentStroke, setCurrentStroke] = useState<DrawStroke>([])
+  const [cursorPos, setCursorPos] = useState<DrawPoint | null>(null)
+  const [drawingEnabled, setDrawingEnabled] = useState(() => {
+    return window.localStorage.getItem('gesturepro.desktop.drawing') === 'true'
+  })
   const t = createTranslator(language)
   const sessionBadge =
     sessionState === 'ready'
@@ -148,6 +164,19 @@ function App() {
         if (!event.systemActive && event.mode === 'idle' && event.gesture === 'NONE') {
           setCameraFrame(null)
         }
+        // When gesture mode transitions away from 'draw', commit the current stroke
+        if (event.mode !== 'draw' && currentStroke.length > 1) {
+          setSlideStrokes((prev) => {
+            const next = new Map(prev)
+            const existing = next.get(currentSlideIndex) ?? []
+            next.set(currentSlideIndex, [...existing, currentStroke])
+            return next
+          })
+          setCurrentStroke([])
+        }
+        if (!event.systemActive) {
+          setCursorPos(null)
+        }
         return
       case 'core_error':
         setLoadState('error')
@@ -178,6 +207,32 @@ function App() {
         return
       case 'camera_frame':
         setCameraFrame(event.data)
+        return
+      case 'cursor_move': {
+        if (!drawingEnabled) return
+        const pt = { x: event.x, y: event.y }
+        setCursorPos(pt)
+        // Append the point to the current in-progress stroke
+        setCurrentStroke((prev) => [...prev, pt])
+        return
+      }
+      case 'draw_command':
+        if (event.action === 'clear') {
+          setSlideStrokes((prev) => {
+            const next = new Map(prev)
+            next.delete(currentSlideIndex)
+            return next
+          })
+          setCurrentStroke([])
+          setCursorPos(null)
+        } else if (event.action === 'undo') {
+          setSlideStrokes((prev) => {
+            const next = new Map(prev)
+            const existing = next.get(currentSlideIndex) ?? []
+            if (existing.length > 0) next.set(currentSlideIndex, existing.slice(0, -1))
+            return next
+          })
+        }
         return
     }
   })
@@ -227,6 +282,8 @@ function App() {
         setScreen('menu')
       } else if (key === 'o') {
         setScreen('load')
+      } else if (key === 'p') {
+        setDrawingEnabled((prev) => !prev)
       } else if (key === 'q') {
         void closeDesktopWindow()
       }
@@ -240,7 +297,13 @@ function App() {
       if (disposed) {
         return
       }
-      const message = error instanceof Error ? error.message : 'Desktop bridge failed to start.'
+      const message = error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+        ? error
+        : error
+        ? String(error)
+        : 'Desktop bridge failed to start.'
       setPinDisplay('••• •••')
       setSessionState('failed')
       setSessionMessage(message)
@@ -267,6 +330,15 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('gesturepro.desktop.lang', language)
   }, [language])
+
+  useEffect(() => {
+    window.localStorage.setItem('gesturepro.desktop.delay', String(delayTime))
+    void bridge.setDelay(delayTime)
+  }, [bridge, delayTime])
+
+  useEffect(() => {
+    window.localStorage.setItem('gesturepro.desktop.drawing', String(drawingEnabled))
+  }, [drawingEnabled])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyboard)
@@ -307,6 +379,10 @@ function App() {
           t={t}
           language={language}
           onLanguageChange={setLanguage}
+          delay={delayTime}
+          onDelayChange={setDelayTime}
+          drawingEnabled={drawingEnabled}
+          onDrawingChange={setDrawingEnabled}
           onBack={() => setScreen('menu')}
         />
       ) : null}
@@ -345,6 +421,35 @@ function App() {
           onMenu={() => setScreen('menu')}
           onLoad={() => setScreen('load')}
           cameraFrame={cameraFrame}
+          strokes={slideStrokes.get(currentSlideIndex) ?? []}
+          currentStroke={drawingEnabled ? currentStroke : []}
+          cursorPos={drawingEnabled ? cursorPos : null}
+          drawingEnabled={drawingEnabled}
+          onToggleDrawing={() => {
+            setDrawingEnabled((prev) => !prev)
+            if (drawingEnabled) {
+              // Commit any in-progress stroke when turning off
+              if (currentStroke.length > 1) {
+                setSlideStrokes((prev) => {
+                  const next = new Map(prev)
+                  const existing = next.get(currentSlideIndex) ?? []
+                  next.set(currentSlideIndex, [...existing, currentStroke])
+                  return next
+                })
+              }
+              setCurrentStroke([])
+              setCursorPos(null)
+            }
+          }}
+          onClearSlideDrawing={() => {
+            setSlideStrokes((prev) => {
+              const next = new Map(prev)
+              next.delete(currentSlideIndex)
+              return next
+            })
+            setCurrentStroke([])
+            setCursorPos(null)
+          }}
         />
       ) : null}
 

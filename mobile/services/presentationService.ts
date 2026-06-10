@@ -1,6 +1,7 @@
-import apiClient, { withSessionToken } from './apiClient';
+import apiClient, { withSessionToken, getAuthToken } from './apiClient';
 import { Platform } from 'react-native';
 import { PresentationSummary, UserPresentation, UploadResponse } from '../types/presentation';
+import { API_BASE_URL } from '../constants/api';
 
 function normalizePresentation(item: PresentationSummary): UserPresentation {
   const extension = item.extension?.replace('.', '').toLowerCase();
@@ -33,19 +34,50 @@ export const presentationService = {
       formData.append('file', webFile);
     } else {
       // For native platforms
+      let fileUri = file.uri;
+
+      // Ensure iOS file paths are correctly prefixed
+      if (Platform.OS === 'ios' && !fileUri.startsWith('file://')) {
+        fileUri = `file://${fileUri}`;
+      }
+
       formData.append('file', {
-        uri: file.uri,
+        uri: fileUri,
         name: file.name,
         type: file.mimeType || 'application/octet-stream',
       } as any);
     }
 
-    const response = await apiClient.post<PresentationSummary>('/presentations/upload/', formData, {
-      headers: {
-        ...withSessionToken(sessionToken),
-      },
+    // Use native fetch to bypass Axios FormData limitations in React Native
+    const headers: Record<string, string> = {
+      ...withSessionToken(sessionToken),
+    };
+
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/presentations/upload/`, {
+      method: 'POST',
+      body: formData,
+      headers,
     });
-    return response.data;
+
+    if (!response.ok) {
+      let errorMessage = 'Upload failed';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorMessage;
+      } catch {
+        const errorText = await response.text();
+        if (errorText) errorMessage = errorText;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    return data;
   },
 
   getById: async (id: string): Promise<UserPresentation> => {

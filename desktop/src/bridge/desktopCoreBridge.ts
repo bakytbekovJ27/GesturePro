@@ -12,6 +12,7 @@ export interface DesktopCoreBridge {
   loadDemoSlides(): Promise<void>
   startGestureCore(): Promise<void>
   stopGestureCore(): Promise<void>
+  setDelay(seconds: number): Promise<void>
   subscribe(listener: CoreListener): () => void
   dispose(): Promise<void>
 }
