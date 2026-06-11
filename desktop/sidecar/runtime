@@ -10,6 +10,10 @@ if [ -f "$REPO_ROOT/backend/.venv/bin/python" ]; then
   VENV_PYTHON="$REPO_ROOT/backend/.venv/bin/python"
 elif [ -f "$REPO_ROOT/.venv/bin/python" ]; then
   VENV_PYTHON="$REPO_ROOT/.venv/bin/python"
+elif [ -f "/Users/aidin07/Documents/GesturePro/backend/.venv/bin/python" ]; then
+  VENV_PYTHON="/Users/aidin07/Documents/GesturePro/backend/.venv/bin/python"
+elif [ -f "/Users/aidin07/Documents/GesturePro/.venv/bin/python" ]; then
+  VENV_PYTHON="/Users/aidin07/Documents/GesturePro/.venv/bin/python"
 fi
 
 if [ -n "$VENV_PYTHON" ]; then

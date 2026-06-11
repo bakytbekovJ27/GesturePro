@@ -46,6 +46,10 @@
     "resources": [
       "../sidecar",
       "../../core"
-    ]
+    ],
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "infoPlist": "Info.plist"
+    }
   }
 }

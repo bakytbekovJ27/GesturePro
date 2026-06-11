@@ -35,19 +35,33 @@ def _find_project_root() -> Path:
 
     Path layouts:
     - Dev mode:   runtime.py at <repo>/desktop/sidecar/runtime.py
-                  core/ at <repo>/core/  → 2 levels up from __file__
+                  core/ at <repo>/core/  -> 2 levels up from __file__
     - Bundle:     runtime.py at .app/Contents/Resources/_up_/sidecar/runtime.py
                   core/ at .app/Contents/Resources/_up_/_up_/core/
-                  → sidecar/../ = _up_/, _up_/../ = Resources/  ← not right
-                  → actually: script_dir.parent = _up_/, .parent = Resources/_up_/
-                  Let's just search 1..3 ancestor levels for 'core/'.
+                  Note: Tauri uses LITERAL '_up_' directory names, so going up
+                  with .parent() does NOT traverse into '_up_/_up_/'. We must
+                  also check sibling _up_ directories.
     """
-    script_dir = Path(__file__).resolve().parent
-    for ancestor in [script_dir.parent, script_dir.parent.parent, script_dir.parent.parent.parent]:
-        if (ancestor / "core").is_dir():
-            return ancestor
-    # Last-resort fallback
-    return Path(__file__).resolve().parents[2]
+    script_dir = Path(__file__).resolve().parent  # e.g. .../sidecar/
+
+    # Strategy 1: Search ancestor directories (works for dev mode)
+    candidate = script_dir
+    for _ in range(6):
+        candidate = candidate.parent
+        if (candidate / "core").is_dir():
+            return candidate
+
+    # Strategy 2: Search _up_ sibling directories (works for Tauri bundle).
+    # In the bundle, sidecar/ and _up_/ are siblings. core/ is under _up_/_up_/.
+    parent = script_dir.parent  # .../Resources/_up_/
+    up_candidate = parent
+    for _ in range(1, 4):
+        up_candidate = up_candidate / "_up_"
+        if (up_candidate / "core").is_dir():
+            return up_candidate
+
+    # Fallback
+    return script_dir.parent.parent
 
 
 PROJECT_ROOT = _find_project_root()
@@ -56,7 +70,15 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.slide_loader import create_demo_slides, load_folder, load_pdf  # noqa: E402
 
-BACKEND_API_URL = os.getenv("GESTUREPRO_API_URL", "http://127.0.0.1:8000/api/v1")
+# Backend API URL — override with GESTUREPRO_API_URL env var if needed.
+# Default points to the deployed Render backend.
+_DEFAULT_BACKEND = "https://gesturepro-lz58.onrender.com/api/v1"
+raw_api_url = os.getenv("GESTUREPRO_API_URL", "").strip().rstrip("/") or _DEFAULT_BACKEND
+if not raw_api_url.endswith("/api/v1"):
+    raw_api_url = f"{raw_api_url}/api/v1"
+BACKEND_API_URL = raw_api_url
+
+
 SYNC_POLL_INTERVAL = 2.5
 SYNC_REQUEST_TIMEOUT = 5
 SYNC_DOWNLOAD_TIMEOUT = (5, 90)

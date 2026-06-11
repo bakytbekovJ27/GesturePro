@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const apiBase = import.meta.env.VITE_API_URL || '';
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: `${apiBase}/api/v1`,
 });
 
 // Attach JWT token automatically
@@ -23,7 +25,7 @@ api.interceptors.response.use(
       const refresh = localStorage.getItem('refresh_token');
       if (refresh) {
         try {
-          const { data } = await axios.post('/api/v1/auth/token/refresh/', { refresh });
+          const { data } = await axios.post(`${apiBase}/api/v1/auth/token/refresh/`, { refresh });
           localStorage.setItem('access_token', data.access);
           original.headers.Authorization = `Bearer ${data.access}`;
           return api(original);
@@ -38,3 +40,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+
