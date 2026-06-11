@@ -1,7 +1,7 @@
 """Django settings for GesturePro backend."""
 import os
 from pathlib import Path
-
+import dj_database_url
 from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -84,11 +84,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'server.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgresql://gesturepro_user:doRbtcRZaEnkJQuuBXrZzHg1JpokKdnM@dpg-d8l8glho3t8c73ap1kbg-a/gesturepro'),
+        conn_max_age=600
+    )
 }
+
+# Укажите разрешенные хосты (будет адрес вашего Render-приложения)
+ALLOWED_HOSTS = [os.environ.get('RENDER_EXTERNAL_HOSTNAME', '127.0.0.1'), 'localhost']
 
 AUTH_PASSWORD_VALIDATORS = []
 
@@ -98,7 +101,8 @@ USE_I18N = True
 USE_TZ = True
 
 # ── Static & Media ────────────────────────────────────────────────────────────
-STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
