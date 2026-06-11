@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "GesturePro Mobile",
-    "slug": "gesturepro-mobile",
+    "slug": "gesturepro",
     "scheme": "gesturepro",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
@@ -15,7 +15,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.gesturepro-mobile"
     },
-    "android": {},
+    "android": {
+      "package": "com.gesturepro.gesturepro"
+    },
     "web": {
       "bundler": "metro"
     },
@@ -25,6 +27,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "db9af8ce-11ad-4128-be56-739dfe8cda2c"
+      }
+    },
+    "owner": "gesturepro"
   }
 }
