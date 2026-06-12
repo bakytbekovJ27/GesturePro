@@ -11,12 +11,18 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.gesturepro-mobile"
+      "bundleIdentifier": "com.anonymous.gesturepro-mobile",
+      "icon": "./assets/icon.png"
     },
     "android": {
-      "package": "com.gesturepro.gesturepro"
+      "package": "com.gesturepro.gesturepro",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
       "bundler": "metro"
