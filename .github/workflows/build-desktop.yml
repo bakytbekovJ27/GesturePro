@@ -41,7 +41,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # Updated to Node 22 to avoid deprecation warnings
           cache: 'npm'
           cache-dependency-path: 'desktop/package-lock.json'
 
@@ -85,3 +85,13 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # 7. Upload build artifacts (fallback to save installers to GHA run artifacts)
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gesturepro-${{ matrix.platform }}-${{ matrix.target }}
+          path: |
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/
+          if-no-files-found: warn
